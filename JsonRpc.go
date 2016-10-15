@@ -230,7 +230,11 @@ func createCallHandler(payloadType reflect.Type, hasContext bool, method reflect
 			} else {
 				// stores the result to return at the end of the check
 				data := results[k].Interface()
-				if err = ctx.Reply(data); err != nil {
+				result, err := json.Marshal(data)
+				if err == nil {
+					_, err = ctx.GetResponse().Write(result)
+				}
+				if err != nil {
 					logger.Errorf("An error ocurred when marshalling the response from %s\n\tresponse: %v\n\terror: %s", ctx.GetRequest().URL.Path, data, err)
 					return err
 				}

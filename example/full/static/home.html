@@ -1,0 +1,70 @@
+<html>
+<head>
+	<title>Json RPC</title>
+	<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.5/jquery.min.js"></script>
+	<script type="text/javascript">
+	$(function(){
+		$('#button0').click(function(){
+			var name = $('#name').val();
+			var body = '"'+name+'"';
+			$.post("/json/greeting/SayHello", body ,function(data){
+				alert(data)
+			})
+			.fail(function(error) {
+				alert(error.responseText);
+			})
+		});
+
+		$('#button1').click(function(){
+			var name = $('#name').val();
+			var body = {name: name}
+			$.get("/rest/greet/sayhi/123", body ,function(data){
+				alert(data)
+			})
+			.fail(function(error) {
+				alert(error.responseText);
+			})
+		});
+
+		$('#button2').click(function(){
+			var a = $('#a').val();
+			var b = $('#b').val();
+			var body = '{"A":'+a+', "B":'+b+'}';
+			$.post("/json/greeting/Add", body ,function(data){
+				//alert(data)
+				$('#result').text(data);
+			})
+			.fail(function(error) {
+				alert(error.responseText);
+			})
+		});
+
+		$('#button3').click(function(){
+			$.post("/json/greeting/Info" ,function(data){
+				alert(JSON.stringify(data))
+			})
+			.fail(function(error) {
+				alert(error.responseText);
+			})
+		});
+	});
+	</script>
+</head>
+<body>
+	<h1>Go JSON-RPC Example</h1>
+	<div>
+		<input id="name" type="text" value="Paulo" />
+		<input id="button0" type="button" value="Call"/>
+		<input id="button1" type="button" value="Hi"/>
+	</div>
+	<div>
+		<input id="a" type="text" value="1" />
+		<input id="b" type="text" value="2" />
+		<input id="button2" type="button" value="Add"/>
+		result: <span id="result"></span>
+	</div>
+	<div>
+		<input id="button3" type="button" value="Info"/>
+	</div>
+</body>
+</html>

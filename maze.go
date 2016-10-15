@@ -294,13 +294,8 @@ func (this *Context) Vars(value interface{}) error {
 }
 
 func (this *Context) Reply(value interface{}) error {
-	result, err := json.Marshal(value)
-	if err != nil {
-		return err
-	}
-
-	_, err = this.Response.Write(result)
-
+	var s = tk.ToString(value)
+	_, err := this.Response.Write([]byte(s))
 	return err
 }
 

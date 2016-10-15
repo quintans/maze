@@ -70,7 +70,7 @@ func main() {
 
 In each filter we decide if we want to proceed or to return and ending the request.
 
-We can also define rules to declare REST endpoints like this: ""/rest/greet/sayhi/{Id:number}"
+We can also define rules to declare REST endpoints like this: "/rest/greet/sayhi/{Id:number}"
 
 Here is a complete example:
 

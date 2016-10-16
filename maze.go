@@ -71,9 +71,15 @@ func (this *Maze) Push(rule string, filters ...func(ctx IContext) error) {
 // with this one (the '*' is omitted).
 // ex: /greet/* + sayHi/{Id} = /greet/sayHi/{Id}
 func (this *Maze) PushMethod(methods []string, rule string, handlers ...func(ctx IContext) error) {
-	if strings.HasPrefix(rule, "/") && strings.HasSuffix(rule, "*") {
-		this.lastRule = rule[:len(rule)-1]
-	} else if !strings.HasPrefix(rule, "/") {
+	if strings.HasPrefix(rule, "/") {
+		if strings.HasSuffix(rule, "*") {
+			this.lastRule = rule[:len(rule)-1]
+			logger.Debug("Last main rule set as", this.lastRule)
+		} else {
+			// resets lastRule
+			this.lastRule = ""
+		}
+	} else if !strings.HasPrefix(rule, "*") {
 		if this.lastRule == "" {
 			rule = "/" + rule
 		} else {
@@ -85,6 +91,7 @@ func (this *Maze) PushMethod(methods []string, rule string, handlers ...func(ctx
 		f := ConvertHandlers(handlers...)
 		// rule is only set for the first filter
 		if rule != "" {
+			logger.Debug("registering rule", rule)
 			f[0].rule = rule
 			if i := strings.Index(rule, "{"); i != -1 {
 				f[0].template = strings.Split(rule, "/")

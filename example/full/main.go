@@ -67,14 +67,6 @@ func hasRole(roles ...string) func(ctx maze.IContext) error {
 	}
 }
 
-func JSONProducer(ctx maze.IContext) error {
-	w := ctx.GetResponse()
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("Expires", "-1")
-
-	return ctx.Proceed()
-}
-
 // redirects / to homte.html
 func HomeHandler(ctx maze.IContext) error {
 	w := ctx.GetResponse()
@@ -196,6 +188,10 @@ type AppCtx struct {
 func (this *AppCtx) Reply(value interface{}) error {
 	result, err := json.Marshal(value)
 	if err == nil {
+		w := this.GetResponse()
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Expires", "-1")
+
 		_, err = this.Response.Write(result)
 	}
 	return err
@@ -265,7 +261,7 @@ func main() {
 	rpc.SetActionFilters("SayHello", hasRole("user", "admin")) // filters specific action of the service
 	mz.Add(rpc.Build("/json/greeting")...)
 
-	mz.Push("/rest/greet/*", hasRole("super"), JSONProducer)
+	mz.Push("/rest/greet/*", hasRole("super"))
 	// the applied rule will be "/rest/greet/sayhi/{Id:number}"
 	mz.GET("sayhi/{Id:number}", greetingsService.SayHi)
 	// guard - if this valid and it reached here it means the service endpoint is invalid

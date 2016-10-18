@@ -240,6 +240,8 @@ func createCallHandler(payloadType reflect.Type, hasContext bool, method reflect
 				}
 			}
 		}
+		// make sure the status is OK, to prevent the case where there is no result
+		ctx.GetResponse().WriteHeader(http.StatusOK)
 
 		return nil
 	}

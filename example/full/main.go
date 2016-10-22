@@ -49,7 +49,7 @@ func counter(c maze.IContext) error {
 func hello(ctx maze.IContext) error {
 	logger.Debugf("executing hello()")
 
-	return ctx.Reply("Hello World!")
+	return ctx.JSON("Hello World!")
 }
 
 // dummy test
@@ -152,7 +152,7 @@ func (this *GreetingService) SayHi(ctx maze.IContext) error {
 		return err
 	}
 
-	return ctx.Reply("Hi " + q.Name + ". Your ID is " + strconv.Itoa(q.Id))
+	return ctx.JSON("Hi " + q.Name + ". Your ID is " + strconv.Itoa(q.Id))
 }
 
 var logger = log.LoggerFor("main")

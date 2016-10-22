@@ -15,7 +15,7 @@ func trace(c maze.IContext) error {
 
 // Hello World filter
 func helloWorld(c maze.IContext) error {
-	return c.Reply("Hello World!")
+	return c.JSON("Hello World!")
 }
 
 func main() {

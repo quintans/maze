@@ -29,7 +29,7 @@ func (this *GreetingService) SayHi(ctx maze.IContext) error {
 		return err
 	}
 
-	return ctx.Reply("Hi " + q.Name + ". Your ID is " + strconv.Itoa(q.Id))
+	return ctx.JSON("Hi " + q.Name + ". Your ID is " + strconv.Itoa(q.Id))
 }
 
 type AppCtx struct {

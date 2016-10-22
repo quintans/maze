@@ -124,7 +124,7 @@ type IContext interface {
 	// Vars
 	Vars(interface{}) error
 	// Reply marshals the interface{} value into a json string and sends it into the response
-	Reply(interface{}) error
+	JSON(interface{}) error
 }
 
 var _ IContext = &Context{}
@@ -300,10 +300,16 @@ func (this *Context) Vars(value interface{}) error {
 	return nil
 }
 
-func (this *Context) Reply(value interface{}) error {
-	var s = tk.ToString(value)
-	_, err := this.Response.Write([]byte(s))
-	return err
+func (this *Context) JSON(value interface{}) error {
+	var s string
+	if value == nil {
+		s = tk.ToString(value)
+		_, err := this.Response.Write([]byte(s))
+		return err
+	}
+
+	this.GetResponse().WriteHeader(http.StatusOK)
+	return nil
 }
 
 type Filterer interface {

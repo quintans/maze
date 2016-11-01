@@ -11,6 +11,7 @@ import (
 
 	tk "github.com/quintans/toolkit"
 	"github.com/quintans/toolkit/log"
+	"github.com/quintans/toolkit/web"
 )
 
 var logger = log.LoggerFor("github.com/quintans/maze")
@@ -107,9 +108,22 @@ func (this *Maze) Add(filters ...*Filter) {
 	this.filters = append(this.filters, filters...)
 }
 
+// Static serves static content.
+// rule defines the rule and dir the relative path
+func (this *Maze) Static(rule string, dir string) {
+	// delivering static content and preventing malicious access
+	var fs = web.OnlyFilesFS{http.Dir(dir)}
+	var fileServer = http.FileServer(fs)
+	this.GET(rule, func(ctx IContext) error {
+		fileServer.ServeHTTP(ctx.GetResponse(), ctx.GetRequest())
+		return nil
+	})
+}
+
 type IContext interface {
 	Proceed() error
 	GetResponse() http.ResponseWriter
+	SetResponse(http.ResponseWriter)
 	GetRequest() *http.Request
 	GetAttribute(interface{}) interface{}
 	SetAttribute(interface{}, interface{})
@@ -123,7 +137,9 @@ type IContext interface {
 	QueryVars(interface{}) error
 	// Vars
 	Vars(interface{}) error
-	// Reply marshals the interface{} value into a json string and sends it into the response
+	// TEXT converts to string the interface{} value and sends it into the response
+	TEXT(interface{}) error
+	// JSON marshals the interface{} value into a json string and sends it into the response
 	JSON(interface{}) error
 }
 
@@ -190,6 +206,10 @@ func (this *Context) Proceed() error {
 
 func (this *Context) GetResponse() http.ResponseWriter {
 	return this.Response
+}
+
+func (this *Context) SetResponse(w http.ResponseWriter) {
+	this.Response = w
 }
 
 func (this *Context) GetRequest() *http.Request {
@@ -300,15 +320,35 @@ func (this *Context) Vars(value interface{}) error {
 	return nil
 }
 
-func (this *Context) JSON(value interface{}) error {
-	var s string
-	if value == nil {
-		s = tk.ToString(value)
-		_, err := this.Response.Write([]byte(s))
-		return err
+func (this *Context) TEXT(value interface{}) error {
+	var w = this.GetResponse()
+	//w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	if value != nil {
+		var s = tk.ToString(value)
+		if _, err := w.Write([]byte(s)); err != nil {
+			return err
+		}
 	}
 
-	this.GetResponse().WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusOK)
+	return nil
+}
+
+func (this *Context) JSON(value interface{}) error {
+	var w = this.GetResponse()
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	if value != nil {
+		result, err := json.Marshal(value)
+		if err != nil {
+			return err
+		}
+		_, err = w.Write(result)
+		if err != nil {
+			return err
+		}
+	}
+
+	w.WriteHeader(http.StatusOK)
 	return nil
 }
 

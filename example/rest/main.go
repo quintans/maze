@@ -22,8 +22,8 @@ type GreetingService struct{}
 
 func (this *GreetingService) SayHi(ctx maze.IContext) error {
 	var q struct {
-		Id   int
-		Name string
+		Id   int    `schema:"id"`
+		Name string `schema:"name"`
 	}
 	if err := ctx.Vars(&q); err != nil {
 		return err

@@ -2,13 +2,12 @@ package maze
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"reflect"
 	"strings"
 
+	"github.com/gorilla/schema"
 	tk "github.com/quintans/toolkit"
 	"github.com/quintans/toolkit/log"
 	"github.com/quintans/toolkit/web"
@@ -254,56 +253,14 @@ func (this *Context) PathVars(value interface{}) error {
 	return nil
 }
 
+var decoder = schema.NewDecoder()
+
 // QueryVars put the parameters in the query part of a url into the struct passed as an interface{}
 func (this *Context) QueryVars(value interface{}) error {
-	var t = reflect.TypeOf(value)
-	if t.Kind() != reflect.Ptr {
-		return errors.New("Query value must be a pointer, not " + t.Kind().String())
-	}
-	t = t.Elem()
-	if t.Kind() != reflect.Struct {
-		return errors.New("Query value must be of kind struct, not " + t.Kind().String())
-	}
-
 	// create a json string and then unmarshal
 	var values = this.GetRequest().URL.Query()
-	var jsonQuery string
 	if len(values) > 0 {
-		var json = ""
-
-		for i := 0; i < t.NumField(); i++ {
-			var f = t.Field(i)
-			var name = f.Name
-			var v = values.Get(name)
-
-			if v == "" {
-				name = tk.UncapFirst(f.Name)
-				v = values.Get(name)
-			}
-
-			if v != "" {
-				var k = f.Type.Kind()
-				if k == reflect.Bool {
-					v = toJsonVal(v, "bool")
-				} else if k >= reflect.Int && k <= reflect.Float64 {
-					v = toJsonVal(v, "number")
-				} else {
-					v = toJsonVal(v, "string")
-				}
-
-				if len(json) > 0 {
-					json += ", "
-				}
-				json += fmt.Sprintf(`"%s": %s`, name, v)
-			}
-		}
-		if json != "" {
-			jsonQuery = "{" + json + "}"
-		}
-	}
-
-	if jsonQuery != "" {
-		return json.Unmarshal([]byte(jsonQuery), value)
+		return decoder.Decode(value, this.GetRequest().URL.Query())
 	}
 
 	return nil
@@ -444,10 +401,9 @@ func (this *Filter) parseToJson(path string) (string, bool) {
 
 func toJsonVal(ori string, typ string) string {
 	var val = ori
-
 	switch typ {
 	case "number":
-	case "bool":
+	case "boolean":
 		if val == "1" || val == "true" || val == "t" {
 			val = "true"
 		} else {

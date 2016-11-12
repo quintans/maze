@@ -2,7 +2,6 @@ package maze
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -14,6 +13,11 @@ import (
 )
 
 var logger = log.LoggerFor("github.com/quintans/maze")
+var decoder = schema.NewDecoder()
+
+func init() {
+	decoder.SetAliasTag("json")
+}
 
 // NewMaze creates maze with context factory. If nil, it uses a default context factory
 func NewMaze(contextFactory func(w http.ResponseWriter, r *http.Request, filters []*Filter) IContext) *Maze {
@@ -45,23 +49,23 @@ func (this *Maze) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (this *Maze) GET(rule string, filters ...func(ctx IContext) error) {
+func (this *Maze) GET(rule string, filters ...FilterHandler) {
 	this.PushMethod([]string{"GET"}, rule, filters...)
 }
 
-func (this *Maze) POST(rule string, filters ...func(ctx IContext) error) {
+func (this *Maze) POST(rule string, filters ...FilterHandler) {
 	this.PushMethod([]string{"POST"}, rule, filters...)
 }
 
-func (this *Maze) PUT(rule string, filters ...func(ctx IContext) error) {
+func (this *Maze) PUT(rule string, filters ...FilterHandler) {
 	this.PushMethod([]string{"PUT"}, rule, filters...)
 }
 
-func (this *Maze) DELETE(rule string, filters ...func(ctx IContext) error) {
+func (this *Maze) DELETE(rule string, filters ...FilterHandler) {
 	this.PushMethod([]string{"DELETE"}, rule, filters...)
 }
 
-func (this *Maze) Push(rule string, filters ...func(ctx IContext) error) {
+func (this *Maze) Push(rule string, filters ...FilterHandler) {
 	this.PushMethod(nil, rule, filters...)
 }
 
@@ -70,11 +74,11 @@ func (this *Maze) Push(rule string, filters ...func(ctx IContext) error) {
 // the concatenation of the last rule that started with '/' and ended with a '*'
 // with this one (the '*' is omitted).
 // ex: /greet/* + sayHi/{Id} = /greet/sayHi/{Id}
-func (this *Maze) PushMethod(methods []string, rule string, handlers ...func(ctx IContext) error) {
+func (this *Maze) PushMethod(methods []string, rule string, handlers ...FilterHandler) {
 	if strings.HasPrefix(rule, "/") {
 		if strings.HasSuffix(rule, "*") {
 			this.lastRule = rule[:len(rule)-1]
-			logger.Debug("Last main rule set as", this.lastRule)
+			logger.Debug("Last main rule set as ", this.lastRule)
 		} else {
 			// resets lastRule
 			this.lastRule = ""
@@ -91,7 +95,7 @@ func (this *Maze) PushMethod(methods []string, rule string, handlers ...func(ctx
 		f := ConvertHandlers(handlers...)
 		// rule is only set for the first filter
 		if rule != "" {
-			logger.Debug("registering rule", rule)
+			logger.Debug("registering rule ", rule)
 			f[0].rule = rule
 			if i := strings.Index(rule, "{"); i != -1 {
 				f[0].template = strings.Split(rule, "/")
@@ -136,6 +140,12 @@ type IContext interface {
 	QueryVars(interface{}) error
 	// Vars
 	Vars(interface{}) error
+	// Values gets a path parameter converter
+	PathValues() Values
+	// Values gets a parameter converter (path + query)
+	Values() Values
+	// Load calls Vars and Payload
+	Load(value interface{}) error
 	// TEXT converts to string the interface{} value and sends it into the response
 	TEXT(interface{}) error
 	// JSON marshals the interface{} value into a json string and sends it into the response
@@ -153,7 +163,9 @@ type Context struct {
 	// Enable to call methods of the extended struct
 	// or to cast the IContext parameter of the handler function
 	// to the right context struct
-	Overrider IContext
+	Overrider  IContext
+	values     Values
+	pathValues Values
 }
 
 func NewContext(w http.ResponseWriter, r *http.Request, filters []*Filter) *Context {
@@ -245,36 +257,88 @@ func (this *Context) Payload(value interface{}) error {
 
 // PathVars put the path parameters in a url into the struct passed as an interface{}
 func (this *Context) PathVars(value interface{}) error {
-	var filter = this.CurrentFilter()
-	if filter.jsonPath != "" {
-		return json.Unmarshal([]byte(filter.jsonPath), value)
+	var values = this.PathValues()
+	if len(values) > 0 {
+		return decoder.Decode(value, values)
 	}
 
 	return nil
 }
 
-var decoder = schema.NewDecoder()
-
 // QueryVars put the parameters in the query part of a url into the struct passed as an interface{}
 func (this *Context) QueryVars(value interface{}) error {
-	// create a json string and then unmarshal
 	var values = this.GetRequest().URL.Query()
 	if len(values) > 0 {
-		return decoder.Decode(value, this.GetRequest().URL.Query())
+		return decoder.Decode(value, values)
 	}
 
 	return nil
 }
 
 func (this *Context) Vars(value interface{}) error {
-	if err := this.QueryVars(value); err != nil {
+	var values = this.Values()
+	if len(values) > 0 {
+		return decoder.Decode(value, values)
+	}
+
+	return nil
+}
+
+func (this *Context) Load(value interface{}) error {
+	if err := this.Vars(value); err != nil {
 		return err
 	}
-	if err := this.PathVars(value); err != nil {
+
+	if err := this.Payload(value); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func (this *Context) Values() Values {
+	if this.values != nil {
+		return this.values
+	}
+
+	this.values = make(Values)
+
+	// path parameters
+	for k, v := range this.PathValues() {
+		this.values[k] = v
+	}
+
+	// query parameters
+	var query = this.GetRequest().URL.Query()
+	if query != nil {
+		for k, v := range query {
+			this.values[k] = v
+		}
+	}
+
+	return this.values
+}
+
+func (this *Context) PathValues() Values {
+	if this.pathValues != nil {
+		return this.pathValues
+	}
+
+	this.pathValues = make(Values)
+	var path = this.GetRequest().URL.Path
+	var parts = strings.Split(path, "/")
+
+	var template = this.CurrentFilter().template
+
+	if len(parts) == len(template) {
+		for k, v := range template {
+			if strings.HasPrefix(v, ":") {
+				this.pathValues[v[1:]] = []string{parts[k]}
+			}
+		}
+	}
+
+	return this.pathValues
 }
 
 func (this *Context) TEXT(value interface{}) error {
@@ -313,16 +377,17 @@ type Filterer interface {
 	Handle(ctx IContext) error
 }
 
+type FilterHandler func(IContext) error
+
 type Filter struct {
 	rule           string
 	template       []string
-	jsonPath       string
 	allowedMethods []string
 
-	handler func(ctx IContext) error
+	handler FilterHandler
 }
 
-func NewFilter(rule string, handler func(c IContext) error) *Filter {
+func NewFilter(rule string, handler FilterHandler) *Filter {
 	var this = new(Filter)
 	this.rule = rule
 	this.handler = handler
@@ -354,9 +419,7 @@ func (this *Filter) IsValid(ctx IContext) bool {
 		} else if strings.HasSuffix(this.rule, "*") {
 			return strings.HasPrefix(path, this.rule[:len(this.rule)-1])
 		} else if this.template != nil {
-			var ok bool
-			this.jsonPath, ok = this.parseToJson(path)
-			return ok
+			return this.validate(path)
 		} else {
 			return path == this.rule
 		}
@@ -365,58 +428,24 @@ func (this *Filter) IsValid(ctx IContext) bool {
 	return false
 }
 
-// parseToJson converts path vars into json string
-// and also checks if its a valid match with the url template
-func (this *Filter) parseToJson(path string) (string, bool) {
-	var json = ""
+// validate checks if its a valid match with the url template
+func (this *Filter) validate(path string) bool {
 	var parts = strings.Split(path, "/")
 
 	if len(parts) != len(this.template) {
-		return "", false
+		return false
 	}
 
 	for k, v := range this.template {
-		if strings.HasPrefix(v, "{") {
-			var name = v[1 : len(v)-1]
-			var nameType = strings.Split(name, ":")
-			name = nameType[0]
-			var typ string
-			if len(nameType) > 1 {
-				typ = nameType[1]
-			}
-
-			var val = toJsonVal(parts[k], typ)
-			if len(json) > 0 {
-				json += ", "
-			}
-			json += fmt.Sprintf(`"%s": %s`, name, val)
-
-		} else if v != parts[k] {
-			return "", false
+		if !strings.HasPrefix(v, ":") && v != parts[k] {
+			return false
 		}
 	}
 
-	return "{" + json + "}", true
+	return true
 }
 
-func toJsonVal(ori string, typ string) string {
-	var val = ori
-	switch typ {
-	case "number":
-	case "boolean":
-		if val == "1" || val == "true" || val == "t" {
-			val = "true"
-		} else {
-			val = "false"
-		}
-	default:
-		val = "\"" + val + "\""
-	}
-
-	return val
-}
-
-func ConvertHandlers(handlers ...func(ctx IContext) error) []*Filter {
+func ConvertHandlers(handlers ...FilterHandler) []*Filter {
 	var filters = make([]*Filter, len(handlers))
 	for k, v := range handlers {
 		filters[k] = &Filter{handler: v}

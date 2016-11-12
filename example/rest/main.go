@@ -61,8 +61,8 @@ func main() {
 	var greetingsService = new(GreetingService)
 
 	mz.Push("/rest/greet/*", JSONProducer)
-	// the applied rule will be "/rest/greet/sayhi/{Id:number}"
-	mz.GET("sayhi/{Id:number}", greetingsService.SayHi)
+	// the applied rule will be "/rest/greet/sayhi/{Id}"
+	mz.GET("sayhi/{Id}", greetingsService.SayHi)
 
 	mux := http.NewServeMux()
 	mux.Handle("/", mz)

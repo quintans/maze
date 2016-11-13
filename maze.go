@@ -49,23 +49,23 @@ func (this *Maze) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (this *Maze) GET(rule string, filters ...FilterHandler) {
+func (this *Maze) GET(rule string, filters ...Handler) {
 	this.PushMethod([]string{"GET"}, rule, filters...)
 }
 
-func (this *Maze) POST(rule string, filters ...FilterHandler) {
+func (this *Maze) POST(rule string, filters ...Handler) {
 	this.PushMethod([]string{"POST"}, rule, filters...)
 }
 
-func (this *Maze) PUT(rule string, filters ...FilterHandler) {
+func (this *Maze) PUT(rule string, filters ...Handler) {
 	this.PushMethod([]string{"PUT"}, rule, filters...)
 }
 
-func (this *Maze) DELETE(rule string, filters ...FilterHandler) {
+func (this *Maze) DELETE(rule string, filters ...Handler) {
 	this.PushMethod([]string{"DELETE"}, rule, filters...)
 }
 
-func (this *Maze) Push(rule string, filters ...FilterHandler) {
+func (this *Maze) Push(rule string, filters ...Handler) {
 	this.PushMethod(nil, rule, filters...)
 }
 
@@ -74,7 +74,7 @@ func (this *Maze) Push(rule string, filters ...FilterHandler) {
 // the concatenation of the last rule that started with '/' and ended with a '*'
 // with this one (the '*' is omitted).
 // ex: /greet/* + sayHi/{Id} = /greet/sayHi/{Id}
-func (this *Maze) PushMethod(methods []string, rule string, handlers ...FilterHandler) {
+func (this *Maze) PushMethod(methods []string, rule string, handlers ...Handler) {
 	if strings.HasPrefix(rule, "/") {
 		if strings.HasSuffix(rule, "*") {
 			this.lastRule = rule[:len(rule)-1]
@@ -377,17 +377,17 @@ type Filterer interface {
 	Handle(ctx IContext) error
 }
 
-type FilterHandler func(IContext) error
+type Handler func(IContext) error
 
 type Filter struct {
 	rule           string
 	template       []string
 	allowedMethods []string
 
-	handler FilterHandler
+	handler Handler
 }
 
-func NewFilter(rule string, handler FilterHandler) *Filter {
+func NewFilter(rule string, handler Handler) *Filter {
 	var this = new(Filter)
 	this.rule = rule
 	this.handler = handler
@@ -445,7 +445,7 @@ func (this *Filter) validate(path string) bool {
 	return true
 }
 
-func ConvertHandlers(handlers ...FilterHandler) []*Filter {
+func ConvertHandlers(handlers ...Handler) []*Filter {
 	var filters = make([]*Filter, len(handlers))
 	for k, v := range handlers {
 		filters[k] = &Filter{handler: v}

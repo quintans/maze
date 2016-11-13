@@ -39,7 +39,7 @@ func NewAction(name string) *Action {
 	}
 }
 
-func (this *Action) SetFilters(filters ...FilterHandler) {
+func (this *Action) SetFilters(filters ...Handler) {
 	this.filters = ConvertHandlers(filters...)
 }
 
@@ -49,7 +49,7 @@ type JsonRpc struct {
 	actions     []*Action
 }
 
-func NewJsonRpc(svc interface{}, filters ...FilterHandler) *JsonRpc {
+func NewJsonRpc(svc interface{}, filters ...Handler) *JsonRpc {
 	this := new(JsonRpc)
 
 	v := reflect.ValueOf(svc)
@@ -124,7 +124,7 @@ func NewJsonRpc(svc interface{}, filters ...FilterHandler) *JsonRpc {
 	return this
 }
 
-func (this *JsonRpc) SetFilters(filters ...FilterHandler) {
+func (this *JsonRpc) SetFilters(filters ...Handler) {
 	this.filters = ConvertHandlers(filters...)
 }
 
@@ -138,7 +138,7 @@ func (this *JsonRpc) GetAction(actionName string) *Action {
 	panic("The action " + actionName + " was not found in service")
 }
 
-func (this *JsonRpc) SetActionFilters(actionName string, filters ...FilterHandler) {
+func (this *JsonRpc) SetActionFilters(actionName string, filters ...Handler) {
 	action := this.GetAction(actionName)
 	action.SetFilters(filters...)
 }
@@ -183,7 +183,7 @@ var (
 	contextType = reflect.TypeOf((*IContext)(nil)).Elem() // interface type
 )
 
-func createCallHandler(payloadType reflect.Type, hasContext bool, method reflect.Value) FilterHandler {
+func createCallHandler(payloadType reflect.Type, hasContext bool, method reflect.Value) Handler {
 	return func(ctx IContext) error {
 		w := ctx.GetResponse()
 		r := ctx.GetRequest()

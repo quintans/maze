@@ -17,6 +17,10 @@ import (
 	"github.com/quintans/toolkit/web"
 )
 
+func init() {
+	maze.SetLogger(log.LoggerFor("github.com/quintans/maze"))
+}
+
 const (
 	COUNTER = "counter"
 )

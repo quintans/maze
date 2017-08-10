@@ -7,7 +7,12 @@ import (
 	"strconv"
 
 	"github.com/quintans/maze"
+	"github.com/quintans/toolkit/log"
 )
+
+func init() {
+	maze.SetLogger(log.LoggerFor("github.com/quintans/maze"))
+}
 
 // JSONProducer adds the headers for a json reply
 func JSONProducer(ctx maze.IContext) error {

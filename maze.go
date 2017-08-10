@@ -8,11 +8,24 @@ import (
 
 	"github.com/gorilla/schema"
 	tk "github.com/quintans/toolkit"
-	"github.com/quintans/toolkit/log"
 	"github.com/quintans/toolkit/web"
 )
 
-var logger = log.LoggerFor("github.com/quintans/maze")
+var logger Logger
+
+type Logger interface {
+	Tracef(string, ...interface{})
+	Debugf(string, ...interface{})
+	Infof(string, ...interface{})
+	Warnf(string, ...interface{})
+	Errorf(string, ...interface{})
+	Fatalf(string, ...interface{})
+}
+
+func SetLogger(lgr Logger) {
+	logger = lgr
+}
+
 var decoder = schema.NewDecoder()
 
 func init() {
@@ -78,7 +91,7 @@ func (this *Maze) PushMethod(methods []string, rule string, handlers ...Handler)
 	if strings.HasPrefix(rule, "/") {
 		if strings.HasSuffix(rule, "*") {
 			this.lastRule = rule[:len(rule)-1]
-			logger.Debug("Last main rule set as ", this.lastRule)
+			logger.Debugf("Last main rule set as %s", this.lastRule)
 		} else {
 			// resets lastRule
 			this.lastRule = ""
@@ -95,7 +108,7 @@ func (this *Maze) PushMethod(methods []string, rule string, handlers ...Handler)
 		f := ConvertHandlers(handlers...)
 		// rule is only set for the first filter
 		if rule != "" {
-			logger.Debug("registering rule ", rule)
+			logger.Debugf("registering rule %s", rule)
 			f[0].rule = rule
 			if i := strings.Index(rule, "{"); i != -1 {
 				f[0].template = strings.Split(rule, "/")
@@ -196,7 +209,7 @@ func (this *Context) Proceed() error {
 	var next = this.nextFilter()
 	if next != nil {
 		if next.rule == "" {
-			logger.Debug("executing filter without rule")
+			logger.Debugf("executing filter without rule")
 			return next.handler(c)
 		} else {
 			// go to the next valid filter.

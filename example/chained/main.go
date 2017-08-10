@@ -5,7 +5,12 @@ import (
 	"net/http"
 
 	"github.com/quintans/maze"
+	"github.com/quintans/toolkit/log"
 )
+
+func init() {
+	maze.SetLogger(log.LoggerFor("github.com/quintans/maze"))
+}
 
 // logs request path
 func trace(c maze.IContext) error {

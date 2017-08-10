@@ -70,7 +70,7 @@ func main() {
 
 In each filter we decide if we want to proceed or to return and ending the request.
 
-We can also define rules to declare REST endpoints like this: "/rest/greet/sayhi/{Id:number}"
+We can also define rules to declare REST endpoints like this: "/rest/greet/sayhi/:Id"
 
 Here is a complete example:
 
@@ -106,7 +106,7 @@ func (this *GreetingService) SayHi(ctx maze.IContext) error {
 		return err
 	}
 
-	return ctx.Reply("Hi " + q.Name + ". Your ID is " + strconv.Itoa(q.Id))
+	return ctx.(*AppCtx).Reply(fmt.Sprintf("Hi %s. Your ID is %d", q.Name, q.Id))
 }
 
 type AppCtx struct {
@@ -128,7 +128,7 @@ func main() {
 	var mz = maze.NewMaze(func(w http.ResponseWriter, r *http.Request, filters []*maze.Filter) maze.IContext {
 		var ctx = new(AppCtx)
 		ctx.Context = maze.NewContext(w, r, filters)
-		// this is important.
+		// THIS IS IMPORTANT.
 		// this way in the handlers we can cast to the specialized context
 		ctx.Overrider = ctx
 
@@ -138,8 +138,8 @@ func main() {
 	var greetingsService = new(GreetingService)
 
 	mz.Push("/rest/greet/*", JSONProducer)
-	// the applied rule will be "/rest/greet/sayhi/{Id:number}"
-	mz.GET("sayhi/{Id:number}", greetingsService.SayHi)
+	// the applied rule will be "/rest/greet/sayhi/:Id"
+	mz.GET("sayhi/:Id", greetingsService.SayHi)
 
 	mux := http.NewServeMux()
 	mux.Handle("/", mz)

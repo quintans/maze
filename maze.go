@@ -86,7 +86,7 @@ func (this *Maze) Push(rule string, filters ...Handler) {
 // If the rule does NOT start with '/' the applied rule will be
 // the concatenation of the last rule that started with '/' and ended with a '*'
 // with this one (the '*' is omitted).
-// ex: /greet/* + sayHi/{Id} = /greet/sayHi/{Id}
+// ex: /greet/* + sayHi/:Id = /greet/sayHi/:Id
 func (this *Maze) PushMethod(methods []string, rule string, handlers ...Handler) {
 	if strings.HasPrefix(rule, "/") {
 		if strings.HasSuffix(rule, "*") {
@@ -110,7 +110,7 @@ func (this *Maze) PushMethod(methods []string, rule string, handlers ...Handler)
 		if rule != "" {
 			logger.Debugf("registering rule %s", rule)
 			f[0].rule = rule
-			if i := strings.Index(rule, "{"); i != -1 {
+			if i := strings.Index(rule, ":"); i != -1 {
 				f[0].template = strings.Split(rule, "/")
 			}
 		}
@@ -357,32 +357,37 @@ func (this *Context) PathValues() Values {
 func (this *Context) TEXT(value interface{}) error {
 	var w = this.GetResponse()
 	//w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	//w.Header().Set("Expires", "-1")
 	if value != nil {
 		var s = tk.ToString(value)
 		if _, err := w.Write([]byte(s)); err != nil {
 			return err
 		}
+	} else {
+		w.WriteHeader(http.StatusOK)
 	}
 
-	w.WriteHeader(http.StatusOK)
 	return nil
 }
 
 func (this *Context) JSON(value interface{}) error {
 	var w = this.GetResponse()
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Expires", "-1")
 	if value != nil {
 		result, err := json.Marshal(value)
 		if err != nil {
 			return err
 		}
+		// writing sets status to OK
 		_, err = w.Write(result)
 		if err != nil {
 			return err
 		}
+	} else {
+		w.WriteHeader(http.StatusOK)
 	}
 
-	w.WriteHeader(http.StatusOK)
 	return nil
 }
 

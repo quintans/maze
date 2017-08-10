@@ -266,8 +266,8 @@ func main() {
 	mz.Add(rpc.Build("/json/greeting")...)
 
 	mz.Push("/rest/greet/*", hasRole("super"))
-	// the applied rule will be "/rest/greet/sayhi/{Id}"
-	mz.GET("sayhi/{Id}", greetingsService.SayHi)
+	// the applied rule will be "/rest/greet/sayhi/:Id"
+	mz.GET("sayhi/:Id", greetingsService.SayHi)
 	// guard - if this valid and it reached here it means the service endpoint is invalid
 	mz.Push("/rest/greet/*", func(c maze.IContext) error {
 		http.Error(c.GetResponse(), "Unknown Service "+c.GetRequest().URL.Path, http.StatusNotFound)

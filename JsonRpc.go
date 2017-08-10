@@ -220,6 +220,7 @@ func createCallHandler(payloadType reflect.Type, hasContext bool, method reflect
 
 		results := method.Call(params)
 
+		var ok = true
 		// check for error
 		for k, v := range results {
 			if v.Type() == errorType {
@@ -228,6 +229,7 @@ func createCallHandler(payloadType reflect.Type, hasContext bool, method reflect
 				}
 				break
 			} else {
+				ok = false
 				// stores the result to return at the end of the check
 				data := results[k].Interface()
 				result, err := json.Marshal(data)
@@ -240,8 +242,10 @@ func createCallHandler(payloadType reflect.Type, hasContext bool, method reflect
 				}
 			}
 		}
-		// make sure the status is OK, to prevent the case where there is no result
-		ctx.GetResponse().WriteHeader(http.StatusOK)
+		if ok {
+			// make sure the status is OK, to prevent the case where there is no result
+			ctx.GetResponse().WriteHeader(http.StatusOK)
+		}
 
 		return nil
 	}

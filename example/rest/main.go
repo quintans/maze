@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/quintans/maze"
 	"github.com/quintans/toolkit/log"
@@ -34,7 +33,7 @@ func (this *GreetingService) SayHi(ctx maze.IContext) error {
 		return err
 	}
 
-	return ctx.JSON("Hi " + q.Name + ". Your ID is " + strconv.Itoa(q.Id))
+	return ctx.(*AppCtx).Reply(fmt.Sprintf("Hi %s. Your ID is %d", q.Name, q.Id))
 }
 
 type AppCtx struct {
@@ -56,7 +55,7 @@ func main() {
 	var mz = maze.NewMaze(func(w http.ResponseWriter, r *http.Request, filters []*maze.Filter) maze.IContext {
 		var ctx = new(AppCtx)
 		ctx.Context = maze.NewContext(w, r, filters)
-		// this is important.
+		// THIS IS IMPORTANT.
 		// this way in the handlers we can cast to the specialized context
 		ctx.Overrider = ctx
 
@@ -66,8 +65,8 @@ func main() {
 	var greetingsService = new(GreetingService)
 
 	mz.Push("/rest/greet/*", JSONProducer)
-	// the applied rule will be "/rest/greet/sayhi/{Id}"
-	mz.GET("sayhi/{Id}", greetingsService.SayHi)
+	// the applied rule will be "/rest/greet/sayhi/:Id"
+	mz.GET("sayhi/:Id", greetingsService.SayHi)
 
 	mux := http.NewServeMux()
 	mux.Handle("/", mz)

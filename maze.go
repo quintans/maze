@@ -12,11 +12,6 @@ import (
 	"github.com/quintans/toolkit/web"
 )
 
-// used when no filter is found
-var noFilter = func(c IContext) error {
-	return nil
-}
-
 var decoder = schema.NewDecoder()
 
 func init() {
@@ -199,30 +194,30 @@ func (this *Context) nextFilter() *Filter {
 // This method should be reimplemented in specialized Context,
 // extending this one
 func (this *Context) Proceed() error {
-	return this.Next(this.GetRequest())(this)
+	return this.Next(this)
 }
 
-func (this *Context) Next(request *http.Request) Handler {
+func (this *Context) Next(c IContext) error {
 	var next = this.nextFilter()
 	if next != nil {
 		if next.rule == "" {
 			logger.Debugf("executing filter without rule")
-			return next.handler
+			return next.handler(this)
 		} else {
 			// go to the next valid filter.
 			// I don't use recursivity for this, because it can be very deep
 			for i := this.filterPos; i < len(this.filters); i++ {
 				var n = this.filters[i]
-				if n.rule != "" && n.IsValid(request) {
+				if n.rule != "" && n.IsValid(c.GetRequest()) {
 					this.filterPos = i
 					logger.Debugf("executing filter %s", n.rule)
-					return n.handler
+					return n.handler(this)
 				}
 			}
 		}
 	}
 
-	return noFilter
+	return nil
 }
 
 func (this *Context) GetResponse() http.ResponseWriter {

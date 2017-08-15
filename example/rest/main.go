@@ -41,7 +41,7 @@ type AppCtx struct {
 }
 
 func (this *AppCtx) Proceed() error {
-	return this.Next(this.GetRequest())(this)
+	return this.Next(this)
 }
 
 // Reply writes in JSON format.

@@ -190,7 +190,7 @@ type AppCtx struct {
 // THIS IS IMPORTANT.
 // this way in the handlers we can cast to the specialized context
 func (this *AppCtx) Proceed() error {
-	return this.Next(this.GetRequest())(this)
+	return this.Next(this)
 }
 
 func (this *AppCtx) Reply(value interface{}) error {

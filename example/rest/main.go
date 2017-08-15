@@ -40,6 +40,10 @@ type AppCtx struct {
 	*maze.Context
 }
 
+func (this *AppCtx) Proceed() error {
+	return this.Next(this.GetRequest())(this)
+}
+
 // Reply writes in JSON format.
 // It overrides Context.Reply()
 func (this *AppCtx) Reply(value interface{}) error {
@@ -55,10 +59,6 @@ func main() {
 	var mz = maze.NewMaze(func(w http.ResponseWriter, r *http.Request, filters []*maze.Filter) maze.IContext {
 		var ctx = new(AppCtx)
 		ctx.Context = maze.NewContext(w, r, filters)
-		// THIS IS IMPORTANT.
-		// this way in the handlers we can cast to the specialized context
-		ctx.Overrider = ctx
-
 		return ctx
 	})
 

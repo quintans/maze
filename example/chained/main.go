@@ -27,7 +27,8 @@ func main() {
 	// creates maze with the default context factory.
 	var mz = maze.NewMaze(nil)
 
-	mz.GET("/*", trace, helloWorld)
+	mz.GET("/*", trace)
+	mz.GET("/", helloWorld)
 
 	mux := http.NewServeMux()
 	mux.Handle("/", mz)

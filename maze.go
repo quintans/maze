@@ -8,28 +8,25 @@ import (
 
 	"github.com/gorilla/schema"
 	tk "github.com/quintans/toolkit"
+	"github.com/quintans/toolkit/log"
 	"github.com/quintans/toolkit/web"
 )
 
-var logger Logger
-
-type Logger interface {
-	Tracef(string, ...interface{})
-	Debugf(string, ...interface{})
-	Infof(string, ...interface{})
-	Warnf(string, ...interface{})
-	Errorf(string, ...interface{})
-	Fatalf(string, ...interface{})
-}
-
-func SetLogger(lgr Logger) {
-	logger = lgr
+// used when no filter is found
+var noFilter = func(c IContext) error {
+	return nil
 }
 
 var decoder = schema.NewDecoder()
 
 func init() {
 	decoder.SetAliasTag("json")
+}
+
+var logger log.ILogger
+
+func SetLogger(lgr log.ILogger) {
+	logger = lgr
 }
 
 // NewMaze creates maze with context factory. If nil, it uses a default context factory
@@ -173,17 +170,12 @@ type Context struct {
 	Attributes map[interface{}]interface{} // attributes only valid in this request
 	filters    []*Filter
 	filterPos  int
-	// Enable to call methods of the extended struct
-	// or to cast the IContext parameter of the handler function
-	// to the right context struct
-	Overrider  IContext
 	values     Values
 	pathValues Values
 }
 
 func NewContext(w http.ResponseWriter, r *http.Request, filters []*Filter) *Context {
 	var this = new(Context)
-	this.Overrider = this
 	this.Response = w
 	this.Request = r
 	this.filterPos = -1
@@ -204,28 +196,33 @@ func (this *Context) nextFilter() *Filter {
 }
 
 // Proceed proceeds to the next valid rule
+// This method should be reimplemented in specialized Context,
+// extending this one
 func (this *Context) Proceed() error {
-	var c = this.Overrider
+	return this.Next(this.GetRequest())(this)
+}
+
+func (this *Context) Next(request *http.Request) Handler {
 	var next = this.nextFilter()
 	if next != nil {
 		if next.rule == "" {
 			logger.Debugf("executing filter without rule")
-			return next.handler(c)
+			return next.handler
 		} else {
 			// go to the next valid filter.
 			// I don't use recursivity for this, because it can be very deep
 			for i := this.filterPos; i < len(this.filters); i++ {
 				var n = this.filters[i]
-				if n.rule != "" && n.IsValid(c) {
+				if n.rule != "" && n.IsValid(request) {
 					this.filterPos = i
 					logger.Debugf("executing filter %s", n.rule)
-					return n.handler(c)
+					return n.handler
 				}
 			}
 		}
 	}
 
-	return nil
+	return noFilter
 }
 
 func (this *Context) GetResponse() http.ResponseWriter {
@@ -412,13 +409,13 @@ func NewFilter(rule string, handler Handler) *Filter {
 	return this
 }
 
-func (this *Filter) IsValid(ctx IContext) bool {
+func (this *Filter) IsValid(request *http.Request) bool {
 	// verify if method is allowed
 	var allowed bool
 	if this.allowedMethods == nil {
 		allowed = true
 	} else {
-		var method = ctx.GetRequest().Method
+		var method = request.Method
 		if method == "" {
 			method = "GET"
 		}
@@ -431,7 +428,7 @@ func (this *Filter) IsValid(ctx IContext) bool {
 	}
 
 	if allowed {
-		var path = ctx.GetRequest().URL.Path
+		var path = request.URL.Path
 		if strings.HasPrefix(this.rule, "*") {
 			return strings.HasSuffix(path, this.rule[1:])
 		} else if strings.HasSuffix(this.rule, "*") {

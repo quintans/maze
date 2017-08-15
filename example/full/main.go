@@ -169,10 +169,8 @@ func init() {
 	 */
 	logLevel := flag.Int("logLevel", int(log.DEBUG), "log level. values between DEBUG=0, INFO, WARN, ERROR, FATAL, NONE=6. default: DEBUG")
 	flag.Parse()
-	if *logLevel <= int(log.INFO) {
-		log.ShowCaller(true)
-	}
-	log.Register("/", log.LogLevel(*logLevel), log.NewConsoleAppender(false))
+	var show = *logLevel <= int(log.INFO)
+	log.Register("/", log.LogLevel(*logLevel), log.NewConsoleAppender(false)).ShowCaller(show)
 
 	//log.SetLevel("pqp", log.DEBUG)
 
@@ -187,6 +185,12 @@ type AppCtx struct {
 	*maze.Context
 
 	Session web.ISession
+}
+
+// THIS IS IMPORTANT.
+// this way in the handlers we can cast to the specialized context
+func (this *AppCtx) Proceed() error {
+	return this.Next(this.GetRequest())(this)
 }
 
 func (this *AppCtx) Reply(value interface{}) error {
@@ -216,10 +220,6 @@ func main() {
 	var mz = maze.NewMaze(func(w http.ResponseWriter, r *http.Request, filters []*maze.Filter) maze.IContext {
 		var ctx = new(AppCtx)
 		ctx.Context = maze.NewContext(w, r, filters)
-		// this is important.
-		// this way in the handlers we can cast to the specialized context
-		ctx.Overrider = ctx
-
 		return ctx
 	})
 	// limits size

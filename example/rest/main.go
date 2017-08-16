@@ -68,11 +68,8 @@ func main() {
 	// the applied rule will be "/rest/greet/sayhi/:Id"
 	mz.GET("sayhi/:Id", greetingsService.SayHi)
 
-	mux := http.NewServeMux()
-	mux.Handle("/", mz)
-
 	fmt.Println("Listening at port 8888")
-	if err := http.ListenAndServe(":8888", mux); err != nil {
+	if err := mz.ListenAndServe(":8888"); err != nil {
 		panic(err)
 	}
 }

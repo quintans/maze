@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"net/http"
 
 	"github.com/quintans/maze"
 	"github.com/quintans/toolkit/log"
@@ -27,14 +26,10 @@ func main() {
 	// creates maze with the default context factory.
 	var mz = maze.NewMaze(nil)
 
-	mz.GET("/*", trace)
-	mz.GET("/", helloWorld)
-
-	mux := http.NewServeMux()
-	mux.Handle("/", mz)
+	mz.GET("/*", trace, helloWorld)
 
 	fmt.Println("Listening at port 8888")
-	if err := http.ListenAndServe(":8888", mux); err != nil {
+	if err := mz.ListenAndServe(":8888"); err != nil {
 		panic(err)
 	}
 }

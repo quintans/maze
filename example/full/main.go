@@ -257,6 +257,8 @@ func main() {
 		fileServer.ServeHTTP(ctx.GetResponse(), ctx.GetRequest())
 		return nil
 	})
+	// or
+	// mz.Static("/static/*", "./")
 
 	mz.Push("/upload/*", upload)
 	// JSON-RPC services
@@ -283,11 +285,8 @@ func main() {
 		return nil
 	})
 
-	//http.Handle("/", fh)
-	mux := http.NewServeMux()
-	mux.Handle("/", mz)
-	logger.Info("Listening at port 8888")
-	if err := http.ListenAndServe(":8888", mux); err != nil {
+	fmt.Println("Listening at port 8888")
+	if err := mz.ListenAndServe(":8888"); err != nil {
 		panic(err)
 	}
 }

@@ -128,6 +128,13 @@ func (this *Maze) Static(rule string, dir string) {
 	})
 }
 
+func (this *Maze) ListenAndServe(addr string) error {
+	mux := http.NewServeMux()
+	mux.Handle("/", this)
+
+	return http.ListenAndServe(":8888", mux)
+}
+
 type IContext interface {
 	Proceed() error
 	GetResponse() http.ResponseWriter

@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"net/http"
 
 	"github.com/quintans/maze"
 	"github.com/quintans/toolkit/log"
@@ -22,11 +21,8 @@ func main() {
 		return err
 	})
 
-	mux := http.NewServeMux()
-	mux.Handle("/", mz)
-
 	fmt.Println("Listening at port 8888")
-	if err := http.ListenAndServe(":8888", mux); err != nil {
+	if err := mz.ListenAndServe(":8888"); err != nil {
 		panic(err)
 	}
 }

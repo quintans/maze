@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/quintans/maze"
 	"github.com/quintans/toolkit/log"
 )
@@ -21,7 +19,6 @@ func main() {
 		return err
 	})
 
-	fmt.Println("Listening at port 8888")
 	if err := mz.ListenAndServe(":8888"); err != nil {
 		panic(err)
 	}

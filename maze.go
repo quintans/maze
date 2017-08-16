@@ -83,7 +83,7 @@ func (this *Maze) PushMethod(methods []string, rule string, handlers ...Handler)
 	if strings.HasPrefix(rule, "/") {
 		if strings.HasSuffix(rule, "*") {
 			this.lastRule = rule[:len(rule)-1]
-			logger.Debugf("Last main rule set as %s", this.lastRule)
+			logger.Tracef("Last main rule set as %s", this.lastRule)
 		} else {
 			// resets lastRule
 			this.lastRule = ""
@@ -100,7 +100,7 @@ func (this *Maze) PushMethod(methods []string, rule string, handlers ...Handler)
 		f := ConvertHandlers(handlers...)
 		// rule is only set for the first filter
 		if rule != "" {
-			logger.Debugf("registering rule %s", rule)
+			logger.Infof("registering rule %s", rule)
 			f[0].rule = rule
 			if i := strings.Index(rule, ":"); i != -1 {
 				f[0].template = strings.Split(rule, "/")
@@ -132,7 +132,8 @@ func (this *Maze) ListenAndServe(addr string) error {
 	mux := http.NewServeMux()
 	mux.Handle("/", this)
 
-	return http.ListenAndServe(":8888", mux)
+	logger.Infof("Listening http at %s", addr)
+	return http.ListenAndServe(addr, mux)
 }
 
 type IContext interface {

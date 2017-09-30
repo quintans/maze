@@ -15,7 +15,7 @@ import (
 var decoder = schema.NewDecoder()
 
 func init() {
-	logger = log.Wrap{} // empty logger
+	logger = log.LoggerFor("github.com/quintans/maze")
 	decoder.SetAliasTag("json")
 }
 

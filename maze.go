@@ -15,6 +15,7 @@ import (
 var decoder = schema.NewDecoder()
 
 func init() {
+	logger = log.Wrap{} // empty logger
 	decoder.SetAliasTag("json")
 }
 

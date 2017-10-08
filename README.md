@@ -70,6 +70,8 @@ We can also define rules to declare REST endpoints like this: "/rest/greet/sayhi
 
 Here is a complete example:
 
+TODO: this example uses low level functions. Use high level functions and a simpler example.
+
 ```go
 package main
 
@@ -77,11 +79,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/quintans/maze"
+	"github.com/quintans/toolkit/log"
 )
 
+func init() {
+	maze.SetLogger(log.LoggerFor("github.com/quintans/maze"))
+}
+
+// This is a demonstrative example. Usually this is not needed.
 // JSONProducer adds the headers for a json reply
 func JSONProducer(ctx maze.IContext) error {
 	w := ctx.GetResponse()
@@ -95,8 +102,8 @@ type GreetingService struct{}
 
 func (this *GreetingService) SayHi(ctx maze.IContext) error {
 	var q struct {
-		Id   int
-		Name string
+		Id   int    `schema:"id"`
+		Name string `schema:"name"`
 	}
 	if err := ctx.Vars(&q); err != nil {
 		return err
@@ -109,6 +116,11 @@ type AppCtx struct {
 	*maze.Context
 }
 
+func (this *AppCtx) Proceed() error {
+	return this.Next(this)
+}
+
+// This is a demonstrative example. Usually we would use maze.IContext.JSON()
 // Reply writes in JSON format.
 // It overrides Context.Reply()
 func (this *AppCtx) Reply(value interface{}) error {
@@ -124,10 +136,6 @@ func main() {
 	var mz = maze.NewMaze(func(w http.ResponseWriter, r *http.Request, filters []*maze.Filter) maze.IContext {
 		var ctx = new(AppCtx)
 		ctx.Context = maze.NewContext(w, r, filters)
-		// THIS IS IMPORTANT.
-		// this way in the handlers we can cast to the specialized context
-		ctx.Overrider = ctx
-
 		return ctx
 	})
 
@@ -135,14 +143,13 @@ func main() {
 	// we apply a filter to requests starting with /rest/greet/*
 	mz.Push("/rest/greet/*", JSONProducer)
 
-	// the applied rule will be "/rest/greet/sayhi/:Id"
+	// since the rule does not start with '/' and the last rule ended with '*'
+	// the applied rule will be the concatenation of the previous one
+	// with this one resulting in "/rest/greet/sayhi/:Id"
 	mz.GET("sayhi/:Id", greetingsService.SayHi)
 
-	mux := http.NewServeMux()
-	mux.Handle("/", mz)
-
 	fmt.Println("Listening at port 8888")
-	if err := http.ListenAndServe(":8888", mux); err != nil {
+	if err := mz.ListenAndServe(":8888"); err != nil {
 		panic(err)
 	}
 }

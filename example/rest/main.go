@@ -13,6 +13,7 @@ func init() {
 	maze.SetLogger(log.LoggerFor("github.com/quintans/maze"))
 }
 
+// This is a demonstrative example. Usually this is not needed.
 // JSONProducer adds the headers for a json reply
 func JSONProducer(ctx maze.IContext) error {
 	w := ctx.GetResponse()
@@ -44,6 +45,7 @@ func (this *AppCtx) Proceed() error {
 	return this.Next(this)
 }
 
+// This is a demonstrative example. Usually we would use maze.IContext.JSON()
 // Reply writes in JSON format.
 // It overrides Context.Reply()
 func (this *AppCtx) Reply(value interface{}) error {
@@ -65,7 +67,10 @@ func main() {
 	var greetingsService = new(GreetingService)
 	// we apply a filter to requests starting with /rest/greet/*
 	mz.Push("/rest/greet/*", JSONProducer)
-	// the applied rule will be "/rest/greet/sayhi/:Id"
+
+	// since the rule does not start with '/' and the last rule ended with '*'
+	// the applied rule will be the concatenation of the previous one
+	// with this one resulting in "/rest/greet/sayhi/:Id"
 	mz.GET("sayhi/:Id", greetingsService.SayHi)
 
 	fmt.Println("Listening at port 8888")

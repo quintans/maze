@@ -63,7 +63,7 @@ func main() {
 	})
 
 	var greetingsService = new(GreetingService)
-
+	// we apply a filter to requests starting with /rest/greet/*
 	mz.Push("/rest/greet/*", JSONProducer)
 	// the applied rule will be "/rest/greet/sayhi/:Id"
 	mz.GET("sayhi/:Id", greetingsService.SayHi)

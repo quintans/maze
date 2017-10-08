@@ -10,11 +10,13 @@ Lets start with the classic "Hello World"
 package main
 
 import (
-	"fmt"
-	"net/http"
-
 	"github.com/quintans/maze"
+	"github.com/quintans/toolkit/log"
 )
+
+func init() {
+	maze.SetLogger(log.LoggerFor("github.com/quintans/maze"))
+}
 
 func main() {
 	// creates maze with the default context factory.
@@ -22,15 +24,10 @@ func main() {
 
 	// Hello World filter
 	mz.GET("/*", func(c maze.IContext) error {
-		_, err := c.GetResponse().Write([]byte("Hello World!"))
-		return err
+		return c.TEXT("Hello World!")
 	})
 
-	mux := http.NewServeMux()
-	mux.Handle("/", mz)
-
-	fmt.Println("Listening at port 8888")
-	if err := http.ListenAndServe(":8888", mux); err != nil {
+	if err := mz.ListenAndServe(":8888"); err != nil {
 		panic(err)
 	}
 }
@@ -48,14 +45,13 @@ We move the Hello filter to a method and add another filter to trace the request
 ```go
 // logs request path
 func trace(c maze.IContext) error {
-	logger.Debug("requesting", c.GetRequest().URL.Path)
+	logger.Debugf("requesting %s", c.GetRequest().URL.Path)
 	return c.Proceed()
 }
 
 // Hello World filter
 func helloWorld(c maze.IContext) error {
-	_, err := c.GetResponse().Write([]byte("Hello World!"))
-	return err
+	return c.TEXT("Hello World!")
 }
 
 func main() {
@@ -136,8 +132,9 @@ func main() {
 	})
 
 	var greetingsService = new(GreetingService)
-
+	// we apply a filter to requests starting with /rest/greet/*
 	mz.Push("/rest/greet/*", JSONProducer)
+
 	// the applied rule will be "/rest/greet/sayhi/:Id"
 	mz.GET("sayhi/:Id", greetingsService.SayHi)
 

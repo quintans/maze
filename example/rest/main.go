@@ -13,8 +13,8 @@ func init() {
 	maze.SetLogger(log.LoggerFor("github.com/quintans/maze"))
 }
 
-// This is a demonstrative example. Usually this is not needed.
 // JSONProducer adds the headers for a json reply
+// This is a demonstrative example. Usually this is not needed.
 func JSONProducer(ctx maze.IContext) error {
 	w := ctx.GetResponse()
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -45,9 +45,9 @@ func (this *AppCtx) Proceed() error {
 	return this.Next(this)
 }
 
-// This is a demonstrative example. Usually we would use maze.IContext.JSON()
 // Reply writes in JSON format.
 // It overrides Context.Reply()
+// This is a demonstrative example. Usually we would use maze.IContext.JSON()
 func (this *AppCtx) Reply(value interface{}) error {
 	result, err := json.Marshal(value)
 	if err == nil {

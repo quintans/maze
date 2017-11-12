@@ -70,8 +70,13 @@ func main() {
 
 	// since the rule does not start with '/' and the last rule ended with '*'
 	// the applied rule will be the concatenation of the previous one
-	// with this one resulting in "/rest/greet/sayhi/:Id"
-	mz.GET("sayhi/:Id", greetingsService.SayHi)
+	// with this one resulting in "/rest/greet/:Id/sayhi/:Name"
+	mz.GET(":Id/sayhi/:Name", greetingsService.SayHi)
+
+	mz.GET("/*", func(ctx maze.IContext) error {
+		ctx.TEXT(http.StatusBadRequest, "invalid URI. Use /rest/greet/:Id/sayhi/:Name")
+		return nil
+	})
 
 	fmt.Println("Listening at port 8888")
 	if err := mz.ListenAndServe(":8888"); err != nil {

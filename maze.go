@@ -203,7 +203,7 @@ func (this *Context) Next(c IContext) error {
 	if next != nil {
 		if next.route == "" {
 			logger.Debugf("executing filter without rule")
-			return next.handler(this)
+			return next.handler(c)
 		} else {
 			// go to the next valid filter.
 			// I don't use recursivity for this, because it can be very deep
@@ -212,7 +212,7 @@ func (this *Context) Next(c IContext) error {
 				if n.IsValid(c.GetRequest()) {
 					this.filterPos = i
 					logger.Debugf("executing filter %s", n)
-					return n.handler(this)
+					return n.handler(c)
 				}
 			}
 		}
@@ -351,16 +351,15 @@ func (this *Context) PathValues() Values {
 // with the specified status (eg: http.StatusOK)
 func (this *Context) TEXT(status int, value interface{}) error {
 	var w = this.GetResponse()
-	//w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	//w.Header().Set("Expires", "-1")
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("Expires", "-1")
+	w.WriteHeader(status)
 	if value != nil {
 		var s = tk.ToString(value)
 		if _, err := w.Write([]byte(s)); err != nil {
 			return err
 		}
 	}
-	// eg: http.StatusOK
-	w.WriteHeader(status)
 
 	return nil
 }
@@ -417,11 +416,11 @@ func (this *Filter) setRule(methods []string, rule string) {
 		} else if strings.HasSuffix(rule, WILDCARD) {
 			this.route = rule[:len(rule)-1]
 			this.wildcard = WILDCARD_AFTER
-		}
-
-		this.route = rule
-		if i := strings.Index(rule, ":"); i != -1 {
-			this.template = strings.Split(rule, "/")
+		} else {
+			this.route = rule
+			if i := strings.Index(rule, ":"); i != -1 {
+				this.template = strings.Split(rule, "/")
+			}
 		}
 	}
 	this.allowedMethods = methods

@@ -155,7 +155,7 @@ func (this *JsonRpc) Build(servicePath string) []*Filter {
 
 	if len(this.filters) > 0 {
 		filters = this.filters
-		filters[0].rule = prefix + "*"
+		filters[0].setRule(nil, prefix+WILDCARD)
 	} else {
 		filters = make([]*Filter, 0)
 	}
@@ -164,12 +164,12 @@ func (this *JsonRpc) Build(servicePath string) []*Filter {
 		var f = v.filters
 		f = append(f, v.callFilter)
 		// apply rule to the first one
-		f[0].rule = prefix + v.name
+		f[0].setRule(nil, prefix+v.name)
 		filters = append(filters, f...)
 	}
 
 	// guard
-	f := NewFilter(prefix+"*", func(c IContext) error {
+	f := NewFilter(prefix+WILDCARD, func(c IContext) error {
 		http.Error(c.GetResponse(), "Unknown Service "+c.GetRequest().URL.Path, http.StatusNotFound)
 		return nil
 	})

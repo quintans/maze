@@ -100,15 +100,7 @@ func (this *Maze) PushMethod(methods []string, rule string, handlers ...Handler)
 	if len(handlers) > 0 {
 		f := ConvertHandlers(handlers...)
 		// rule is only set for the first filter
-		if rule != "" {
-			logger.Infof("registering rule %s", rule)
-			f[0].rule = rule
-			if i := strings.Index(rule, ":"); i != -1 {
-				f[0].template = strings.Split(rule, "/")
-			}
-		}
-		f[0].allowedMethods = methods
-
+		f[0].setRule(methods, rule)
 		this.filters = append(this.filters, f...)
 	}
 }
@@ -160,10 +152,10 @@ type IContext interface {
 	Values() Values
 	// Load calls Vars and Payload
 	Load(value interface{}) error
-	// TEXT converts to string the interface{} value and sends it into the response
-	TEXT(interface{}) error
-	// JSON marshals the interface{} value into a json string and sends it into the response
-	JSON(interface{}) error
+	// TEXT converts to string the interface{} value and sends it into the response with a status code
+	TEXT(int, interface{}) error
+	// JSON marshals the interface{} value into a json string and sends it into the response with a status code
+	JSON(int, interface{}) error
 }
 
 var _ IContext = &Context{}
@@ -209,7 +201,7 @@ func (this *Context) Proceed() error {
 func (this *Context) Next(c IContext) error {
 	var next = this.nextFilter()
 	if next != nil {
-		if next.rule == "" {
+		if next.route == "" {
 			logger.Debugf("executing filter without rule")
 			return next.handler(this)
 		} else {
@@ -217,9 +209,9 @@ func (this *Context) Next(c IContext) error {
 			// I don't use recursivity for this, because it can be very deep
 			for i := this.filterPos; i < len(this.filters); i++ {
 				var n = this.filters[i]
-				if n.rule != "" && n.IsValid(c.GetRequest()) {
+				if n.IsValid(c.GetRequest()) {
 					this.filterPos = i
-					logger.Debugf("executing filter %s", n.rule)
+					logger.Debugf("executing filter %s", n)
 					return n.handler(this)
 				}
 			}
@@ -355,7 +347,9 @@ func (this *Context) PathValues() Values {
 	return this.pathValues
 }
 
-func (this *Context) TEXT(value interface{}) error {
+// TEXT transforms value to text and send it as text content type
+// with the specified status (eg: http.StatusOK)
+func (this *Context) TEXT(status int, value interface{}) error {
 	var w = this.GetResponse()
 	//w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	//w.Header().Set("Expires", "-1")
@@ -364,14 +358,14 @@ func (this *Context) TEXT(value interface{}) error {
 		if _, err := w.Write([]byte(s)); err != nil {
 			return err
 		}
-	} else {
-		w.WriteHeader(http.StatusOK)
 	}
+	// eg: http.StatusOK
+	w.WriteHeader(status)
 
 	return nil
 }
 
-func (this *Context) JSON(value interface{}) error {
+func (this *Context) JSON(status int, value interface{}) error {
 	var w = this.GetResponse()
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Expires", "-1")
@@ -380,13 +374,13 @@ func (this *Context) JSON(value interface{}) error {
 		if err != nil {
 			return err
 		}
-		// writing sets status to OK
+		w.WriteHeader(status)
 		_, err = w.Write(result)
 		if err != nil {
 			return err
 		}
 	} else {
-		w.WriteHeader(http.StatusOK)
+		w.WriteHeader(status)
 	}
 
 	return nil
@@ -398,22 +392,65 @@ type Filterer interface {
 
 type Handler func(IContext) error
 
+const (
+	WILDCARD        = "*"
+	WILDCARD_BEFORE = -1
+	WILDCARD_AFTER  = 1
+)
+
 type Filter struct {
-	rule           string
+	route          string
+	wildcard       int
 	template       []string
 	allowedMethods []string
 
 	handler Handler
 }
 
+func (this *Filter) setRule(methods []string, rule string) {
+	if rule != "" {
+		logger.Infof("registering rule %s", rule)
+
+		if strings.HasPrefix(rule, WILDCARD) {
+			this.route = rule[1:]
+			this.wildcard = WILDCARD_BEFORE
+		} else if strings.HasSuffix(rule, WILDCARD) {
+			this.route = rule[:len(rule)-1]
+			this.wildcard = WILDCARD_AFTER
+		}
+
+		this.route = rule
+		if i := strings.Index(rule, ":"); i != -1 {
+			this.template = strings.Split(rule, "/")
+		}
+	}
+	this.allowedMethods = methods
+}
+
+func (this *Filter) String() string {
+	var str string
+	if this.wildcard == WILDCARD_BEFORE {
+		str = "*"
+	}
+	str += this.route
+	if this.wildcard == WILDCARD_AFTER {
+		str += "*"
+	}
+	return str
+}
+
 func NewFilter(rule string, handler Handler) *Filter {
 	var this = new(Filter)
-	this.rule = rule
+	this.setRule(nil, rule)
 	this.handler = handler
 	return this
 }
 
 func (this *Filter) IsValid(request *http.Request) bool {
+	if this.route == "" {
+		return false
+	}
+
 	// verify if method is allowed
 	var allowed bool
 	if this.allowedMethods == nil {
@@ -433,14 +470,14 @@ func (this *Filter) IsValid(request *http.Request) bool {
 
 	if allowed {
 		var path = request.URL.Path
-		if strings.HasPrefix(this.rule, "*") {
-			return strings.HasSuffix(path, this.rule[1:])
-		} else if strings.HasSuffix(this.rule, "*") {
-			return strings.HasPrefix(path, this.rule[:len(this.rule)-1])
+		if this.wildcard == WILDCARD_BEFORE {
+			return strings.HasSuffix(path, this.route)
+		} else if this.wildcard == WILDCARD_AFTER {
+			return strings.HasPrefix(path, this.route)
 		} else if this.template != nil {
 			return this.validate(path)
 		} else {
-			return path == this.rule
+			return path == this.route
 		}
 	}
 

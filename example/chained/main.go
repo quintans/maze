@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 
 	"github.com/quintans/maze"
 	"github.com/quintans/toolkit/log"
@@ -19,7 +20,7 @@ func trace(c maze.IContext) error {
 
 // Hello World filter
 func helloWorld(c maze.IContext) error {
-	return c.JSON("Hello World!")
+	return c.JSON(http.StatusOK, "Hello World!")
 }
 
 func main() {

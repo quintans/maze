@@ -10,6 +10,8 @@ Lets start with the classic "Hello World"
 package main
 
 import (
+	"net/http"
+
 	"github.com/quintans/maze"
 	"github.com/quintans/toolkit/log"
 )
@@ -24,7 +26,7 @@ func main() {
 
 	// Hello World filter
 	mz.GET("/*", func(c maze.IContext) error {
-		return c.TEXT("Hello World!")
+		return c.TEXT(http.StatusOK, "Hello World!")
 	})
 
 	if err := mz.ListenAndServe(":8888"); err != nil {
@@ -67,17 +69,16 @@ func main() {
 
 In each filter we decide if we want to proceed or to return and ending the request.
 
-We can also define rules to declare REST endpoints like this: "/rest/greet/sayhi/:Id"
+We can also define rules to declare REST endpoints like this: "/rest/greet/:Id/sayhi/:Name".
+
+It is also possible to extend the context.
 
 Here is a complete example:
-
-TODO: this example uses low level functions. Use high level functions and a simpler example.
 
 ```go
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -89,14 +90,10 @@ func init() {
 	maze.SetLogger(log.LoggerFor("github.com/quintans/maze"))
 }
 
-// JSONProducer adds the headers for a json reply
-// This is a demonstrative example. Usually this is not needed.
-func JSONProducer(ctx maze.IContext) error {
-	w := ctx.GetResponse()
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("Expires", "-1")
-
-	return ctx.Proceed()
+// logs request path
+func trace(c maze.IContext) error {
+	fmt.Println("==> requesting", c.GetRequest().URL.Path)
+	return c.Proceed()
 }
 
 type GreetingService struct{}
@@ -122,14 +119,9 @@ func (this *AppCtx) Proceed() error {
 }
 
 // Reply writes in JSON format.
-// It overrides Context.Reply()
-// This is a demonstrative example. Usually we would use maze.IContext.JSON()
+// This is a demonstrative example of how we can extend Context.
 func (this *AppCtx) Reply(value interface{}) error {
-	result, err := json.Marshal(value)
-	if err == nil {
-		_, err = this.Response.Write(result)
-	}
-	return err
+	return this.JSON(http.StatusOK, value)
 }
 
 func main() {
@@ -142,12 +134,20 @@ func main() {
 
 	var greetingsService = new(GreetingService)
 	// we apply a filter to requests starting with /rest/greet/*
-	mz.Push("/rest/greet/*", JSONProducer)
+	mz.Push("/rest/greet/*", trace)
 
 	// since the rule does not start with '/' and the last rule ended with '*'
 	// the applied rule will be the concatenation of the previous one
 	// with this one resulting in "/rest/greet/sayhi/:Id"
 	mz.GET("sayhi/:Id", greetingsService.SayHi)
+
+	mz.GET("/*", func(ctx maze.IContext) error {
+		ctx.TEXT(
+			http.StatusBadRequest,
+			"invalid URI.\nUse /rest/greet/sayhi/:Id[?name=Name] eg: /rest/greet/sayhi/123?name=Quintans",
+		)
+		return nil
+	})
 
 	fmt.Println("Listening at port 8888")
 	if err := mz.ListenAndServe(":8888"); err != nil {

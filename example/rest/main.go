@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -13,14 +12,10 @@ func init() {
 	maze.SetLogger(log.LoggerFor("github.com/quintans/maze"))
 }
 
-// JSONProducer adds the headers for a json reply
-// This is a demonstrative example. Usually this is not needed.
-func JSONProducer(ctx maze.IContext) error {
-	w := ctx.GetResponse()
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("Expires", "-1")
-
-	return ctx.Proceed()
+// logs request path
+func trace(c maze.IContext) error {
+	fmt.Println("==> requesting", c.GetRequest().URL.Path)
+	return c.Proceed()
 }
 
 type GreetingService struct{}
@@ -46,14 +41,9 @@ func (this *AppCtx) Proceed() error {
 }
 
 // Reply writes in JSON format.
-// It overrides Context.Reply()
-// This is a demonstrative example. Usually we would use maze.IContext.JSON()
+// This is a demonstrative example of how we can extend Context.
 func (this *AppCtx) Reply(value interface{}) error {
-	result, err := json.Marshal(value)
-	if err == nil {
-		_, err = this.Response.Write(result)
-	}
-	return err
+	return this.JSON(http.StatusOK, value)
 }
 
 func main() {
@@ -66,15 +56,18 @@ func main() {
 
 	var greetingsService = new(GreetingService)
 	// we apply a filter to requests starting with /rest/greet/*
-	mz.Push("/rest/greet/*", JSONProducer)
+	mz.Push("/rest/greet/*", trace)
 
 	// since the rule does not start with '/' and the last rule ended with '*'
 	// the applied rule will be the concatenation of the previous one
-	// with this one resulting in "/rest/greet/:Id/sayhi/:Name"
-	mz.GET(":Id/sayhi/:Name", greetingsService.SayHi)
+	// with this one resulting in "/rest/greet/sayhi/:Id"
+	mz.GET("sayhi/:Id", greetingsService.SayHi)
 
 	mz.GET("/*", func(ctx maze.IContext) error {
-		ctx.TEXT(http.StatusBadRequest, "invalid URI. Use /rest/greet/:Id/sayhi/:Name")
+		ctx.TEXT(
+			http.StatusBadRequest,
+			"invalid URI.\nUse /rest/greet/sayhi/:Id[?name=Name] eg: /rest/greet/sayhi/123?name=Quintans",
+		)
 		return nil
 	})
 

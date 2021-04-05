@@ -77,7 +77,7 @@ func (f *Filter) IsValid(request *http.Request) bool {
 	} else {
 		method := request.Method
 		if method == "" {
-			method = "GET"
+			method = http.MethodGet
 		}
 		for _, v := range f.allowedMethods {
 			if method == v {

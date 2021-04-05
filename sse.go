@@ -121,10 +121,10 @@ func (s *SseBroker) Serve(c IContext) error {
 		s.unsubscribe(sub)
 	}()
 
-	notify := w.(http.CloseNotifier).CloseNotify()
+	ctx := c.GetRequest().Context()
 
 	go func() {
-		<-notify
+		<-ctx.Done()
 		s.unsubscribe(sub)
 	}()
 

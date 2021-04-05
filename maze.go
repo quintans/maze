@@ -60,23 +60,23 @@ func (m *Maze) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (m *Maze) GET(rule string, filters ...Handler) {
-	m.PushMethod([]string{"GET"}, rule, filters...)
+	m.PushMethod([]string{http.MethodGet}, rule, filters...)
 }
 
 func (m *Maze) POST(rule string, filters ...Handler) {
-	m.PushMethod([]string{"POST"}, rule, filters...)
+	m.PushMethod([]string{http.MethodPost}, rule, filters...)
 }
 
 func (m *Maze) PUT(rule string, filters ...Handler) {
-	m.PushMethod([]string{"PUT"}, rule, filters...)
+	m.PushMethod([]string{http.MethodPut}, rule, filters...)
 }
 
 func (m *Maze) DELETE(rule string, filters ...Handler) {
-	m.PushMethod([]string{"DELETE"}, rule, filters...)
+	m.PushMethod([]string{http.MethodDelete}, rule, filters...)
 }
 
 func (m *Maze) PATCH(rule string, filters ...Handler) {
-	m.PushMethod([]string{"PATCH"}, rule, filters...)
+	m.PushMethod([]string{http.MethodPatch}, rule, filters...)
 }
 
 func (m *Maze) Push(rule string, filters ...Handler) {

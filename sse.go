@@ -37,25 +37,25 @@ func NewSseBroker() *SseBroker {
 	}
 }
 
-func (this *SseBroker) HasSubscribers() bool {
-	this.RLock()
-	defer this.RUnlock()
-	return len(this.subscribers) > 0
+func (s *SseBroker) HasSubscribers() bool {
+	s.RLock()
+	defer s.RUnlock()
+	return len(s.subscribers) > 0
 }
 
-func (this *SseBroker) subscribe(c chan []byte) {
-	this.Lock()
-	this.subscribers[c] = true
-	this.Unlock()
+func (s *SseBroker) subscribe(c chan []byte) {
+	s.Lock()
+	s.subscribers[c] = true
+	s.Unlock()
 }
 
-func (this *SseBroker) unsubscribe(c chan []byte) {
-	this.Lock()
-	if this.subscribers[c] {
-		delete(this.subscribers, c)
+func (s *SseBroker) unsubscribe(c chan []byte) {
+	s.Lock()
+	if s.subscribers[c] {
+		delete(s.subscribers, c)
 		close(c)
 	}
-	this.Unlock()
+	s.Unlock()
 }
 
 func write(buf bytes.Buffer, k string, v string) bytes.Buffer {
@@ -85,22 +85,22 @@ func encode(e Sse) []byte {
 	return buf.Bytes()
 }
 
-func (this *SseBroker) Send(e Sse) {
-	var b = encode(e)
+func (s *SseBroker) Send(e Sse) {
+	b := encode(e)
 
-	this.Lock()
-	for c := range this.subscribers {
+	s.Lock()
+	for c := range s.subscribers {
 		c <- b
 	}
-	this.Unlock()
+	s.Unlock()
 }
 
-func (this *SseBroker) Serve(c IContext) error {
-	var w = c.GetResponse()
-	var f, ok = w.(http.Flusher)
+func (s *SseBroker) Serve(c IContext) error {
+	w := c.GetResponse()
+	f, ok := w.(http.Flusher)
 	if !ok {
 		http.Error(w, "Streaming unsupported!", http.StatusInternalServerError)
-		return errors.New("No flusher")
+		return errors.New("no flusher")
 	}
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -108,28 +108,28 @@ func (this *SseBroker) Serve(c IContext) error {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Expires", "-1")
 
-	var sub = make(chan []byte, 1)
-	if this.OnConnect != nil {
-		var e, err = this.OnConnect()
+	sub := make(chan []byte, 1)
+	if s.OnConnect != nil {
+		e, err := s.OnConnect()
 		if err == nil {
 			sub <- encode(e)
 		}
 	}
 
-	this.subscribe(sub)
+	s.subscribe(sub)
 	defer func() {
-		this.unsubscribe(sub)
+		s.unsubscribe(sub)
 	}()
 
-	var notify = w.(http.CloseNotifier).CloseNotify()
+	notify := w.(http.CloseNotifier).CloseNotify()
 
 	go func() {
 		<-notify
-		this.unsubscribe(sub)
+		s.unsubscribe(sub)
 	}()
 
 	for b := range sub {
-		var _, err = w.Write(b)
+		_, err := w.Write(b)
 		if err != nil {
 			return err
 		}

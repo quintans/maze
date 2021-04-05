@@ -11,7 +11,7 @@ func init() {
 
 func main() {
 	// creates maze with the default context factory.
-	var mz = maze.NewMaze(nil)
+	mz := maze.NewMaze()
 
 	// Hello World filter
 	mz.GET("/*", func(c maze.IContext) error {

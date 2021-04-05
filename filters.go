@@ -2,10 +2,10 @@ package maze
 
 import "github.com/quintans/toolkit/web"
 
-// ResponseBuffer buffers the response, permiting setting headers after starting writing the response.
+// ResponseBuffer buffers the response, permitting setting headers after starting writing the response.
 func ResponseBuffer(c IContext) error {
-	var rec = web.NewBufferedResponse()
-	var w = c.GetResponse()
+	rec := web.NewBufferedResponse()
+	w := c.GetResponse()
 	// passing a buffer instead of the original RW
 	c.SetResponse(rec)
 	// restores the original response, even in the case of a panic
@@ -21,7 +21,7 @@ func ResponseBuffer(c IContext) error {
 }
 
 func StaticGz(dir string) func(c IContext) error {
-	var rs = web.ResourcesHandler(dir)
+	rs := web.ResourcesHandler(dir)
 	return func(c IContext) error {
 		rs.ServeHTTP(c.GetResponse(), c.GetRequest())
 		return nil

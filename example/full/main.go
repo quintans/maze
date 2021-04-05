@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -36,7 +35,7 @@ func UnauthorizedFilter(ctx maze.IContext) error {
 func counter(c maze.IContext) error {
 	logger.Debugf("executing counter()")
 
-	var ctx = c.(*AppCtx)
+	ctx := c.(*AppCtx)
 	session := ctx.Session
 	var count int = 0
 	cnt := session.Get(COUNTER)
@@ -49,13 +48,6 @@ func counter(c maze.IContext) error {
 	return nil
 }
 
-// hello world
-func hello(ctx maze.IContext) error {
-	logger.Debugf("executing hello()")
-
-	return ctx.JSON(http.StatusOK, "Hello World!")
-}
-
 // dummy test
 func mark(ctx maze.IContext) error {
 	logger.Debug("requesting", ctx.GetRequest().URL.Path)
@@ -66,7 +58,7 @@ func hasRole(roles ...string) func(ctx maze.IContext) error {
 	return func(ctx maze.IContext) error {
 		logger.Debugf("executing hasRole(%s)", roles)
 
-		fmt.Println(fmt.Sprintf(">>> checking for role(s) %s <<<\n", roles))
+		fmt.Printf(">>> checking for role(s) %s <<<\n\n", roles)
 		return ctx.Proceed()
 	}
 }
@@ -132,22 +124,21 @@ type InfoOut struct {
 	Age  int
 }
 
-type GreetingService struct {
-}
+type GreetingService struct{}
 
-func (this *GreetingService) SayHello(name string) string {
+func (s *GreetingService) SayHello(name string) string {
 	return "Hello " + name
 }
 
-func (this *GreetingService) Add(in AddIn) int64 {
+func (s *GreetingService) Add(in AddIn) int64 {
 	return in.A + in.B
 }
 
-func (this *GreetingService) Info() InfoOut {
+func (s *GreetingService) Info() InfoOut {
 	return InfoOut{"Paulo", 41}
 }
 
-func (this *GreetingService) SayHi(ctx maze.IContext) error {
+func (s *GreetingService) SayHi(ctx maze.IContext) error {
 	var q struct {
 		Id   int    `schema:"id"`
 		Name string `schema:"name"`
@@ -169,10 +160,10 @@ func init() {
 	 */
 	logLevel := flag.Int("logLevel", int(log.DEBUG), "log level. values between DEBUG=0, INFO, WARN, ERROR, FATAL, NONE=6. default: DEBUG")
 	flag.Parse()
-	var show = *logLevel <= int(log.INFO)
+	show := *logLevel <= int(log.INFO)
 	log.Register("/", log.LogLevel(*logLevel), log.NewConsoleAppender(false)).ShowCaller(show)
 
-	//log.SetLevel("pqp", log.DEBUG)
+	// log.SetLevel("pqp", log.DEBUG)
 
 	/*
 	 * ===================
@@ -182,27 +173,15 @@ func init() {
 }
 
 type AppCtx struct {
-	*maze.Context
+	*maze.MazeContext
 
 	Session web.ISession
 }
 
 // THIS IS IMPORTANT.
 // this way in the handlers we can cast to the specialized context
-func (this *AppCtx) Proceed() error {
-	return this.Next(this)
-}
-
-func (this *AppCtx) Reply(value interface{}) error {
-	result, err := json.Marshal(value)
-	if err == nil {
-		w := this.GetResponse()
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.Header().Set("Expires", "-1")
-
-		_, err = this.Response.Write(result)
-	}
-	return err
+func (ac *AppCtx) Proceed() error {
+	return ac.Next(ac)
 }
 
 func main() {
@@ -217,11 +196,11 @@ func main() {
 	}()
 
 	// creates maze with context factory.
-	var mz = maze.NewMaze(func(w http.ResponseWriter, r *http.Request, filters []*maze.Filter) maze.IContext {
-		var ctx = new(AppCtx)
-		ctx.Context = maze.NewContext(w, r, filters)
+	mz := maze.NewMaze(maze.WithContextFactory(func(w http.ResponseWriter, r *http.Request, filters []*maze.Filter) maze.IContext {
+		ctx := new(AppCtx)
+		ctx.MazeContext = maze.NewContext(w, r, filters)
 		return ctx
-	})
+	}))
 	// limits size
 	mz.Push("/*", limit)
 	// logs request path
@@ -236,7 +215,7 @@ func main() {
 	mz.Push("/app/*", func(c maze.IContext) error {
 		logger.Debugf("executing SessionFilter()")
 
-		var ctx = c.(*AppCtx)
+		ctx := c.(*AppCtx)
 		// (re)writes the session cookie to the response
 		ctx.Session = sessions.GetOrCreate(ctx.GetResponse(), ctx.GetRequest(), true)
 		return ctx.Proceed()
@@ -249,9 +228,9 @@ func main() {
 	mz.Push("/static/private/*", UnauthorizedFilter)
 
 	// delivering static content and preventing malicious access
-	fs := web.OnlyFilesFS{http.Dir("./")}
+	fs := web.OnlyFilesFS{Fs: http.Dir("./")}
 	fileServer := http.FileServer(fs)
-	//http.Handle("/static/", http.FileServer(fs))
+	// http.Handle("/static/", http.FileServer(fs))
 	mz.GET("/static/*", func(ctx maze.IContext) error {
 		logger.Debugf("executing static()")
 		fileServer.ServeHTTP(ctx.GetResponse(), ctx.GetRequest())
@@ -262,8 +241,11 @@ func main() {
 
 	mz.Push("/upload/*", upload)
 	// JSON-RPC services
-	var greetingsService = new(GreetingService)
-	var rpc = maze.NewJsonRpc(greetingsService)
+	greetingsService := new(GreetingService)
+	rpc, err := maze.NewJsonRpc(greetingsService)
+	if err != nil {
+		panic(err)
+	}
 	rpc.SetActionFilters("SayHello", hasRole("user", "admin")) // filters specific action of the service
 	mz.Add(rpc.Build("/json/greeting")...)
 

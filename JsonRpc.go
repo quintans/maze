@@ -39,8 +39,8 @@ func NewAction(name string) *Action {
 	}
 }
 
-func (this *Action) SetFilters(filters ...Handler) {
-	this.filters = ConvertHandlers(filters...)
+func (a *Action) SetFilters(filters ...Handler) {
+	a.filters = convertHandlers(filters...)
 }
 
 type JsonRpc struct {
@@ -49,8 +49,8 @@ type JsonRpc struct {
 	actions     []*Action
 }
 
-func NewJsonRpc(svc interface{}, filters ...Handler) *JsonRpc {
-	this := new(JsonRpc)
+func NewJsonRpc(svc interface{}, filters ...Handler) (*JsonRpc, error) {
+	rpc := new(JsonRpc)
 
 	v := reflect.ValueOf(svc)
 	t := v.Type()
@@ -63,30 +63,30 @@ func NewJsonRpc(svc interface{}, filters ...Handler) *JsonRpc {
 		panic("Supplied instance is not a struct.")
 	}
 
-	this.servicePath = t.Name()
+	rpc.servicePath = t.Name()
 
-	this.actions = make([]*Action, 0)
+	rpc.actions = make([]*Action, 0)
 
-	this.filters = ConvertHandlers(filters...)
+	rpc.filters = convertHandlers(filters...)
 
 	// loop through the struct's fields and set the map
 	for i := 0; i < t.NumMethod(); i++ {
 		method := t.Method(i)
 		if isExported(method.Name) {
-			var action = NewAction(method.Name)
+			action := NewAction(method.Name)
 
-			logger.Debugf("Registering JSON-RPC %s/%s", this.servicePath, method.Name)
+			logger.Debugf("Registering JSON-RPC %s/%s", rpc.servicePath, method.Name)
 
 			// validate argument types
 			size := method.Type.NumIn()
 			if size > 3 {
-				panic(fmt.Sprintf("Invalid service %s.%s. Service actions can only have at the most two  parameters.",
-					t.Elem().Name(), method.Name))
+				return nil, fmt.Errorf("invalid service %s.%s. Service actions can only have at the most two  parameters",
+					t.Elem().Name(), method.Name)
 			} else if size > 2 {
 				t := method.Type.In(1)
 				if t != contextType {
-					panic(fmt.Sprintf("Invalid service %s.%s. In a two paramater action the first must be the interface web.IContext.",
-						t.Elem().Name(), method.Name))
+					return nil, fmt.Errorf("invalid service %s.%s. In a two paramater action the first must be the interface web.IContext",
+						t.Elem().Name(), method.Name)
 				}
 			}
 
@@ -104,32 +104,32 @@ func NewJsonRpc(svc interface{}, filters ...Handler) *JsonRpc {
 				}
 			}
 
-			//logger.Debugf("Has Contex: %t; Payload Type: %s", hasContext, payloadType)
+			// logger.Debugf("Has Contex: %t; Payload Type: %s", hasContext, payloadType)
 
 			// validate return types
 			size = method.Type.NumOut()
 			if size > 2 {
-				panic(fmt.Sprintf("Invalid service %s.%s. Service actions can only have at the most two return values.",
-					t.Elem().Name(), method.Name))
+				return nil, fmt.Errorf("invalid service %s.%s. Service actions can only have at the most two return values",
+					t.Elem().Name(), method.Name)
 			} else if size > 1 && errorType != method.Type.Out(1) {
-				panic(fmt.Sprintf("Invalid service %s.%s. In a two return values actions the second can only be an error. Found %s.",
-					t.Elem().Name(), method.Name))
+				return nil, fmt.Errorf("invalid service %s.%s. In a two return values actions the second can only be an error. Found %s",
+					t.Elem().Name(), method.Name, method.Type.Out(1))
 			}
 
 			action.callFilter = &Filter{handler: createCallHandler(payloadType, hasContext, v.Method(i))}
-			this.actions = append(this.actions, action)
+			rpc.actions = append(rpc.actions, action)
 		}
 	}
 
-	return this
+	return rpc, nil
 }
 
-func (this *JsonRpc) SetFilters(filters ...Handler) {
-	this.filters = ConvertHandlers(filters...)
+func (r *JsonRpc) SetFilters(filters ...Handler) {
+	r.filters = convertHandlers(filters...)
 }
 
-func (this *JsonRpc) GetAction(actionName string) *Action {
-	for _, v := range this.actions {
+func (r *JsonRpc) GetAction(actionName string) *Action {
+	for _, v := range r.actions {
 		if v.name == actionName {
 			return v
 		}
@@ -138,30 +138,30 @@ func (this *JsonRpc) GetAction(actionName string) *Action {
 	panic("The action " + actionName + " was not found in service")
 }
 
-func (this *JsonRpc) SetActionFilters(actionName string, filters ...Handler) {
-	action := this.GetAction(actionName)
+func (r *JsonRpc) SetActionFilters(actionName string, filters ...Handler) {
+	action := r.GetAction(actionName)
 	action.SetFilters(filters...)
 }
 
-func (this *JsonRpc) Build(servicePath string) []*Filter {
+func (r *JsonRpc) Build(servicePath string) []*Filter {
 	var prefix string
 	if servicePath == "" {
-		prefix = this.servicePath
+		prefix = r.servicePath
 	} else {
 		prefix = servicePath
 	}
 	prefix += "/"
 	var filters []*Filter
 
-	if len(this.filters) > 0 {
-		filters = this.filters
+	if len(r.filters) > 0 {
+		filters = r.filters
 		filters[0].setRule(nil, prefix+WILDCARD)
 	} else {
 		filters = make([]*Filter, 0)
 	}
 
-	for _, v := range this.actions {
-		var f = v.filters
+	for _, v := range r.actions {
+		f := v.filters
 		f = append(f, v.callFilter)
 		// apply rule to the first one
 		f[0].setRule(nil, prefix+v.name)
@@ -206,7 +206,7 @@ func createCallHandler(payloadType reflect.Type, hasContext bool, method reflect
 			// TODO: what happens if args is "null" ???
 			err = json.Unmarshal(payload, param.Interface())
 			if err != nil {
-				logger.Errorf("An error ocurred when unmarshalling the call for %s\n\tinput: %s\n\terror: %s", ctx.GetRequest().URL.Path, payload, err)
+				logger.Errorf("An error occurred when unmarshalling the call for %s\n\tinput: %s\n\terror: %s", ctx.GetRequest().URL.Path, payload, err)
 				return err
 			}
 		}
@@ -220,7 +220,7 @@ func createCallHandler(payloadType reflect.Type, hasContext bool, method reflect
 
 		results := method.Call(params)
 
-		var ok = true
+		ok := true
 		// check for error
 		for k, v := range results {
 			if v.Type() == errorType {
@@ -237,7 +237,7 @@ func createCallHandler(payloadType reflect.Type, hasContext bool, method reflect
 					_, err = ctx.GetResponse().Write(result)
 				}
 				if err != nil {
-					logger.Errorf("An error ocurred when marshalling the response from %s\n\tresponse: %v\n\terror: %s", ctx.GetRequest().URL.Path, data, err)
+					logger.Errorf("An error occurred when marshalling the response from %s\n\tresponse: %v\n\terror: %s", ctx.GetRequest().URL.Path, data, err)
 					return err
 				}
 			}

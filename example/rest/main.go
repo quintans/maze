@@ -20,7 +20,7 @@ func trace(c maze.IContext) error {
 
 type GreetingService struct{}
 
-func (this *GreetingService) SayHi(ctx maze.IContext) error {
+func (s *GreetingService) SayHi(ctx maze.IContext) error {
 	var q struct {
 		Id   int    `schema:"id"`
 		Name string `schema:"name"`
@@ -33,28 +33,31 @@ func (this *GreetingService) SayHi(ctx maze.IContext) error {
 }
 
 type AppCtx struct {
-	*maze.Context
+	*maze.MazeContext
 }
 
-func (this *AppCtx) Proceed() error {
-	return this.Next(this)
+// Proceed calls the next filter
+// THIS IS IMPORTANT.
+// this way in the handlers we can cast to the specialized context
+func (ac *AppCtx) Proceed() error {
+	return ac.Next(ac)
 }
 
 // Reply writes in JSON format.
 // This is a demonstrative example of how we can extend Context.
-func (this *AppCtx) Reply(value interface{}) error {
-	return this.JSON(http.StatusOK, value)
+func (ac *AppCtx) Reply(value interface{}) error {
+	return ac.JSON(http.StatusOK, value)
 }
 
 func main() {
 	// creates maze with specialized context factory.
-	var mz = maze.NewMaze(func(w http.ResponseWriter, r *http.Request, filters []*maze.Filter) maze.IContext {
-		var ctx = new(AppCtx)
-		ctx.Context = maze.NewContext(w, r, filters)
+	mz := maze.NewMaze(maze.WithContextFactory(func(w http.ResponseWriter, r *http.Request, filters []*maze.Filter) maze.IContext {
+		ctx := new(AppCtx)
+		ctx.MazeContext = maze.NewContext(w, r, filters)
 		return ctx
-	})
+	}))
 
-	var greetingsService = new(GreetingService)
+	greetingsService := &GreetingService{}
 	// we apply a filter to requests starting with /rest/greet/*
 	mz.Push("/rest/greet/*", trace)
 

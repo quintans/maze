@@ -25,7 +25,7 @@ func helloWorld(c maze.IContext) error {
 
 func main() {
 	// creates maze with the default context factory.
-	var mz = maze.NewMaze(nil)
+	mz := maze.NewMaze()
 
 	mz.GET("/*", trace, helloWorld)
 

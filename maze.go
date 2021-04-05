@@ -84,20 +84,20 @@ func (m *Maze) Push(rule string, filters ...Handler) {
 }
 
 // PushMethod adds the filters to the end of the last filters.
-// If the rule does NOT start with '/' the applied rule will be
+// If the current rule does NOT start with '/', the applied rule will be
 // the concatenation of the last rule that started with '/' and ended with a '*'
-// with this one (the '*' is omitted).
-// ex: /greet/* + sayHi/:Id = /greet/sayHi/:Id
+// with this current one (the '*' is omitted).
+// eg: /greet/* + sayHi/:Id = /greet/sayHi/:Id
 func (m *Maze) PushMethod(methods []string, rule string, handlers ...Handler) {
 	if strings.HasPrefix(rule, "/") {
-		if strings.HasSuffix(rule, "*") {
+		if strings.HasSuffix(rule, WILDCARD) {
 			m.lastRule = rule[:len(rule)-1]
 			logger.Tracef("Last main rule set as %s", m.lastRule)
 		} else {
 			// resets lastRule
 			m.lastRule = ""
 		}
-	} else if !strings.HasPrefix(rule, "*") {
+	} else if !strings.HasPrefix(rule, WILDCARD) {
 		if m.lastRule == "" {
 			rule = "/" + rule
 		} else {

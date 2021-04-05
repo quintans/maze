@@ -49,11 +49,11 @@ func (f *Filter) setRule(methods []string, rule string) {
 func (f *Filter) String() string {
 	var str string
 	if f.wildcard == WILDCARD_BEFORE {
-		str = "*"
+		str = WILDCARD
 	}
 	str += f.route
 	if f.wildcard == WILDCARD_AFTER {
-		str += "*"
+		str += WILDCARD
 	}
 	return str
 }

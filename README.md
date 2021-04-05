@@ -126,11 +126,11 @@ func (this *AppCtx) Reply(value interface{}) error {
 
 func main() {
 	// creates maze with specialized context factory.
-	var mz = maze.NewMaze(func(w http.ResponseWriter, r *http.Request, filters []*maze.Filter) maze.IContext {
+	var mz = maze.NewMaze(maze.WithContextFactory(func(w http.ResponseWriter, r *http.Request, filters []*maze.Filter) maze.IContext {
 		var ctx = new(AppCtx)
-		ctx.Context = maze.NewContext(w, r, filters)
+		ctx.MazeContext = maze.NewContext(w, r, filters)
 		return ctx
-	})
+	}))
 
 	var greetingsService = new(GreetingService)
 	// we apply a filter to requests starting with /rest/greet/*

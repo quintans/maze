@@ -72,7 +72,7 @@ func (c *MazeContext) nextFilter() *Filter {
 	if c.filterPos < len(c.filters) {
 		return c.filters[c.filterPos]
 	}
-	// don't let ir go higher than the max
+	// don't let it go higher than the max
 	c.filterPos = len(c.filters)
 
 	return nil
@@ -93,7 +93,6 @@ func (c *MazeContext) Next(mc IContext) error {
 			return next.handler(mc)
 		} else {
 			// go to the next valid filter.
-			// I don't use recursivity for this, because it can be very deep
 			for i := c.filterPos; i < len(c.filters); i++ {
 				n := c.filters[i]
 				if n.IsValid(mc.GetRequest()) {

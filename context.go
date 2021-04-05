@@ -43,6 +43,7 @@ type IContext interface {
 var _ IContext = &MazeContext{}
 
 type MazeContext struct {
+	logger     Logger
 	decoder    *schema.Decoder
 	Response   http.ResponseWriter
 	Request    *http.Request
@@ -53,10 +54,11 @@ type MazeContext struct {
 	pathValues Values
 }
 
-func NewContext(w http.ResponseWriter, r *http.Request, filters []*Filter) *MazeContext {
+func NewContext(logger Logger, w http.ResponseWriter, r *http.Request, filters []*Filter) *MazeContext {
 	decoder := schema.NewDecoder()
 	decoder.SetAliasTag("json")
 	c := &MazeContext{
+		logger:     logger,
 		decoder:    decoder,
 		Response:   w,
 		Request:    r,
@@ -89,7 +91,7 @@ func (c *MazeContext) Next(mc IContext) error {
 	next := c.nextFilter()
 	if next != nil {
 		if next.route == "" {
-			logger.Debugf("executing filter without rule")
+			c.logger.Debugf("executing filter without rule")
 			return next.handler(mc)
 		} else {
 			// go to the next valid filter.
@@ -97,7 +99,7 @@ func (c *MazeContext) Next(mc IContext) error {
 				n := c.filters[i]
 				if n.IsValid(mc.GetRequest()) {
 					c.filterPos = i
-					logger.Debugf("executing filter %s", n)
+					c.logger.Debugf("executing filter %s", n)
 					return n.handler(mc)
 				}
 			}

@@ -28,8 +28,6 @@ type Filter struct {
 
 func (f *Filter) setRule(methods []string, rule string) {
 	if rule != "" {
-		logger.Infof("registering rule %s", rule)
-
 		if strings.HasPrefix(rule, WILDCARD) {
 			f.route = rule[1:]
 			f.wildcard = WILDCARD_BEFORE

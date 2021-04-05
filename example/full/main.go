@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -12,17 +11,15 @@ import (
 	"time"
 
 	"github.com/quintans/maze"
-	"github.com/quintans/toolkit/log"
 	"github.com/quintans/toolkit/web"
+	"github.com/sirupsen/logrus"
 )
-
-func init() {
-	maze.SetLogger(log.LoggerFor("github.com/quintans/maze"))
-}
 
 const (
 	COUNTER = "counter"
 )
+
+var logger = maze.NewLogrus(logrus.StandardLogger())
 
 // authorization filter
 func UnauthorizedFilter(ctx maze.IContext) error {
@@ -50,7 +47,7 @@ func counter(c maze.IContext) error {
 
 // dummy test
 func mark(ctx maze.IContext) error {
-	logger.Debug("requesting", ctx.GetRequest().URL.Path)
+	logger.Debugf("requesting", ctx.GetRequest().URL.Path)
 	return ctx.Proceed()
 }
 
@@ -150,28 +147,6 @@ func (s *GreetingService) SayHi(ctx maze.IContext) error {
 	return ctx.JSON(http.StatusOK, "Hi "+q.Name+". Your ID is "+strconv.Itoa(q.Id))
 }
 
-var logger = log.LoggerFor("main")
-
-func init() {
-	/*
-	 * ===================
-	 * BEGIN CONFIGURATION
-	 * ===================
-	 */
-	logLevel := flag.Int("logLevel", int(log.DEBUG), "log level. values between DEBUG=0, INFO, WARN, ERROR, FATAL, NONE=6. default: DEBUG")
-	flag.Parse()
-	show := *logLevel <= int(log.INFO)
-	log.Register("/", log.LogLevel(*logLevel), log.NewConsoleAppender(false)).ShowCaller(show)
-
-	// log.SetLevel("pqp", log.DEBUG)
-
-	/*
-	 * ===================
-	 * END CONFIGURATION
-	 * ===================
-	 */
-}
-
 type AppCtx struct {
 	*maze.MazeContext
 
@@ -196,9 +171,9 @@ func main() {
 	}()
 
 	// creates maze with context factory.
-	mz := maze.NewMaze(maze.WithContextFactory(func(w http.ResponseWriter, r *http.Request, filters []*maze.Filter) maze.IContext {
+	mz := maze.NewMaze(maze.WithContextFactory(func(logrus maze.Logger, w http.ResponseWriter, r *http.Request, filters []*maze.Filter) maze.IContext {
 		ctx := new(AppCtx)
-		ctx.MazeContext = maze.NewContext(w, r, filters)
+		ctx.MazeContext = maze.NewContext(logger, w, r, filters)
 		return ctx
 	}))
 	// limits size
@@ -242,7 +217,7 @@ func main() {
 	mz.Push("/upload/*", upload)
 	// JSON-RPC services
 	greetingsService := new(GreetingService)
-	rpc, err := maze.NewJsonRpc(greetingsService)
+	rpc, err := maze.NewJsonRpc(logger, greetingsService)
 	if err != nil {
 		panic(err)
 	}

@@ -8,13 +8,8 @@ import (
 	"time"
 
 	"github.com/quintans/maze"
-	"github.com/quintans/toolkit/log"
 	"github.com/stretchr/testify/require"
 )
-
-func init() {
-	maze.SetLogger(log.LoggerFor("github.com/quintans/maze"))
-}
 
 // logs request path
 func trace(c maze.IContext) error {

@@ -4,21 +4,11 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/quintans/toolkit/log"
 	"github.com/quintans/toolkit/web"
+	"github.com/sirupsen/logrus"
 )
 
-func init() {
-	logger = log.LoggerFor("github.com/quintans/maze")
-}
-
-var logger log.ILogger
-
-func SetLogger(lgr log.ILogger) {
-	logger = lgr
-}
-
-type ContextFactory func(w http.ResponseWriter, r *http.Request, filters []*Filter) IContext
+type ContextFactory func(l Logger, w http.ResponseWriter, r *http.Request, filters []*Filter) IContext
 
 type Option func(m *Maze)
 
@@ -28,9 +18,17 @@ func WithContextFactory(cf ContextFactory) Option {
 	}
 }
 
+func WithLogger(l Logger) Option {
+	return func(m *Maze) {
+		m.logger = l
+	}
+}
+
 // NewMaze creates maze with context factory. If nil, it uses a default context factory
 func NewMaze(options ...Option) *Maze {
-	m := &Maze{}
+	m := &Maze{
+		logger: NewLogrus(logrus.StandardLogger()),
+	}
 	for _, o := range options {
 		o(m)
 	}
@@ -38,6 +36,7 @@ func NewMaze(options ...Option) *Maze {
 }
 
 type Maze struct {
+	logger         Logger
 	filters        []*Filter
 	contextFactory ContextFactory
 	lastRule       string
@@ -48,9 +47,9 @@ func (m *Maze) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		var ctx IContext
 		if m.contextFactory == nil {
 			// default
-			ctx = NewContext(w, r, m.filters)
+			ctx = NewContext(m.logger, w, r, m.filters)
 		} else {
-			ctx = m.contextFactory(w, r, m.filters)
+			ctx = m.contextFactory(m.logger, w, r, m.filters)
 		}
 		err := ctx.Proceed()
 		if err != nil {
@@ -92,7 +91,7 @@ func (m *Maze) PushMethod(methods []string, rule string, handlers ...Handler) {
 	if strings.HasPrefix(rule, "/") {
 		if strings.HasSuffix(rule, WILDCARD) {
 			m.lastRule = rule[:len(rule)-1]
-			logger.Tracef("Last main rule set as %s", m.lastRule)
+			m.logger.Debugf("Last main rule set as %s", m.lastRule)
 		} else {
 			// resets lastRule
 			m.lastRule = ""
@@ -108,6 +107,7 @@ func (m *Maze) PushMethod(methods []string, rule string, handlers ...Handler) {
 	if len(handlers) > 0 {
 		f := convertHandlers(handlers...)
 		// rule is only set for the first filter
+		m.logger.Infof("registering rule %s", rule)
 		f[0].setRule(methods, rule)
 		m.filters = append(m.filters, f...)
 	}
@@ -133,6 +133,6 @@ func (m *Maze) ListenAndServe(addr string) error {
 	mux := http.NewServeMux()
 	mux.Handle("/", m)
 
-	logger.Infof("Listening http at %s", addr)
+	m.logger.Infof("Listening http at %s", addr)
 	return http.ListenAndServe(addr, mux)
 }

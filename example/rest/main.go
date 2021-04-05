@@ -5,12 +5,7 @@ import (
 	"net/http"
 
 	"github.com/quintans/maze"
-	"github.com/quintans/toolkit/log"
 )
-
-func init() {
-	maze.SetLogger(log.LoggerFor("github.com/quintans/maze"))
-}
 
 // logs request path
 func trace(c maze.IContext) error {
@@ -51,9 +46,9 @@ func (ac *AppCtx) Reply(value interface{}) error {
 
 func main() {
 	// creates maze with specialized context factory.
-	mz := maze.NewMaze(maze.WithContextFactory(func(w http.ResponseWriter, r *http.Request, filters []*maze.Filter) maze.IContext {
+	mz := maze.NewMaze(maze.WithContextFactory(func(logger maze.Logger, w http.ResponseWriter, r *http.Request, filters []*maze.Filter) maze.IContext {
 		ctx := new(AppCtx)
-		ctx.MazeContext = maze.NewContext(w, r, filters)
+		ctx.MazeContext = maze.NewContext(logger, w, r, filters)
 		return ctx
 	}))
 

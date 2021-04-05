@@ -47,11 +47,10 @@ type JsonRpc struct {
 	servicePath string
 	filters     []*Filter
 	actions     []*Action
+	logger      Logger
 }
 
-func NewJsonRpc(svc interface{}, filters ...Handler) (*JsonRpc, error) {
-	rpc := new(JsonRpc)
-
+func NewJsonRpc(logger Logger, svc interface{}, filters ...Handler) (*JsonRpc, error) {
 	v := reflect.ValueOf(svc)
 	t := v.Type()
 	if t.Kind() != reflect.Ptr {
@@ -63,11 +62,12 @@ func NewJsonRpc(svc interface{}, filters ...Handler) (*JsonRpc, error) {
 		panic("Supplied instance is not a struct.")
 	}
 
-	rpc.servicePath = t.Name()
-
-	rpc.actions = make([]*Action, 0)
-
-	rpc.filters = convertHandlers(filters...)
+	rpc := &JsonRpc{
+		servicePath: t.Name(),
+		actions:     make([]*Action, 0),
+		filters:     convertHandlers(filters...),
+		logger:      logger,
+	}
 
 	// loop through the struct's fields and set the map
 	for i := 0; i < t.NumMethod(); i++ {
@@ -116,7 +116,7 @@ func NewJsonRpc(svc interface{}, filters ...Handler) (*JsonRpc, error) {
 					t.Elem().Name(), method.Name, method.Type.Out(1))
 			}
 
-			action.callFilter = &Filter{handler: createCallHandler(payloadType, hasContext, v.Method(i))}
+			action.callFilter = &Filter{handler: createCallHandler(logger, payloadType, hasContext, v.Method(i))}
 			rpc.actions = append(rpc.actions, action)
 		}
 	}
@@ -183,7 +183,7 @@ var (
 	contextType = reflect.TypeOf((*IContext)(nil)).Elem() // interface type
 )
 
-func createCallHandler(payloadType reflect.Type, hasContext bool, method reflect.Value) Handler {
+func createCallHandler(logger Logger, payloadType reflect.Type, hasContext bool, method reflect.Value) Handler {
 	return func(ctx IContext) error {
 		w := ctx.GetResponse()
 		r := ctx.GetRequest()
